@@ -1,0 +1,57 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: vulnscan
+      POSTGRES_PASSWORD: vulnscan
+      POSTGRES_DB: vulnscan
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vulnscan"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  api:
+    build: ./backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://vulnscan:vulnscan@postgres:5432/vulnscan
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  worker:
+    build: ./backend
+    command: celery -A app.worker.celery_app worker --loglevel=info
+    # Mounts the host's Docker socket so the worker can launch scan containers
+    # on the host daemon ("Docker-out-of-Docker") instead of nesting a daemon in here.
+    volumes:
+      - ./backend:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      DATABASE_URL: postgresql://vulnscan:vulnscan@postgres:5432/vulnscan
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+volumes:
+  postgres_data:
