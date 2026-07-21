@@ -1,6 +1,9 @@
+import os
 import uuid
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -31,6 +34,18 @@ def create_scan(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Domain is not verified. Complete DNS verification before scanning it.",
+        )
+
+    parsed_target = urlparse(payload.target_url)
+    if parsed_target.scheme not in ("http", "https"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="target_url must be an http:// or https:// URL",
+        )
+    if parsed_target.hostname != domain.hostname:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"target_url host must exactly match the verified domain ({domain.hostname})",
         )
 
     scan_job = ScanJob(
@@ -72,3 +87,26 @@ def get_report(
     if scan_job is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Scan not found")
     return scan_job
+
+
+@router.get("/reports/{scan_job_id}/pdf")
+def download_report_pdf(
+    scan_job_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    scan_job = (
+        db.query(ScanJob)
+        .filter(ScanJob.id == scan_job_id, ScanJob.user_id == current_user.id)
+        .first()
+    )
+    if scan_job is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Scan not found")
+    if not scan_job.report_path or not os.path.exists(scan_job.report_path):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="PDF report not available")
+
+    return FileResponse(
+        scan_job.report_path,
+        media_type="application/pdf",
+        filename=f"vulnscan-report-{scan_job.id}.pdf",
+    )
