@@ -53,5 +53,18 @@ services:
       redis:
         condition: service_started
 
+  frontend:
+    build: ./frontend
+    volumes:
+      - ./frontend:/app
+      # Anonymous volume - shadows the bind mount's node_modules with the
+      # one installed during the image build. Without this, the bind mount
+      # above would replace the container's Linux node_modules (native
+      # binaries like esbuild/rollup included) with whatever is - or isn't -
+      # in the host's Windows frontend/node_modules, breaking the install.
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+
 volumes:
   postgres_data:

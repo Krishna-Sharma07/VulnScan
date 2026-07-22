@@ -1,5 +1,6 @@
 import io
 import json
+import re
 import tarfile
 
 import docker
@@ -9,6 +10,17 @@ from app.core.config import settings
 
 # ZAP's riskcode: 3=High, 2=Medium, 1=Low, 0=Informational.
 RISK_TO_SEVERITY = {"3": "high", "2": "medium", "1": "low", "0": "info"}
+
+_TAG_RE = re.compile(r"<[^>]+>")
+
+
+def _plain_text(html: str) -> str:
+    """ZAP's desc/solution fields come back as HTML fragments (<p>...</p>).
+    Findings are stored as plain text - the DB is the single source of truth
+    consumed by both the API/frontend and the PDF renderer, so this strips
+    tags once here rather than leaving raw HTML for each consumer to handle."""
+    text = _TAG_RE.sub(" ", html or "")
+    return re.sub(r"\s+", " ", text).strip()
 
 
 class ScanExecutionError(Exception):
@@ -84,9 +96,9 @@ def _parse_findings(report: dict, target_url: str) -> list[dict]:
                         "vuln_type": alert.get("alertRef") or alert.get("pluginid") or "unknown",
                         "severity": severity,
                         "title": alert.get("name") or alert.get("alert") or "Unnamed finding",
-                        "description": alert.get("desc") or "",
+                        "description": _plain_text(alert.get("desc")),
                         "evidence": instance.get("evidence"),
-                        "remediation": alert.get("solution") or "",
+                        "remediation": _plain_text(alert.get("solution")),
                         "affected_url": instance.get("uri") or target_url,
                     }
                 )

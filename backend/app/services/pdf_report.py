@@ -1,5 +1,3 @@
-import re
-
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
@@ -16,19 +14,12 @@ SEVERITY_COLORS = {
     "info": "#6b7280",
 }
 
-_TAG_RE = re.compile(r"<[^>]+>")
-
-
-def _plain_text(html: str) -> str:
-    """ZAP's desc/solution fields come back with embedded HTML tags (<p>...).
-    reportlab's Paragraph only understands its own small XML subset, so
-    arbitrary HTML from ZAP isn't safe to hand it directly - strip tags down
-    to plain text instead."""
-    text = _TAG_RE.sub(" ", html or "")
-    return re.sub(r"\s+", " ", text).strip()
-
 
 def _escape(text: str) -> str:
+    """findings' description/remediation are already plain text (HTML
+    stripped in scanner.py._plain_text before hitting the DB) - this only
+    re-escapes &/</> so reportlab's Paragraph markup parser can't misread
+    literal angle brackets that appeared in the original scanned page."""
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
@@ -91,10 +82,10 @@ def generate_pdf_report(scan_job, findings: list[dict], output_path: str) -> Non
                 )
             )
             story.append(Paragraph(f'<b>Affected URL:</b> {_escape(finding["affected_url"])}', body_style))
-            story.append(Paragraph(f'<b>Description:</b> {_escape(_plain_text(finding["description"]))}', body_style))
+            story.append(Paragraph(f'<b>Description:</b> {_escape(finding["description"])}', body_style))
             if finding.get("evidence"):
                 story.append(Paragraph(f'<b>Evidence:</b> {_escape(finding["evidence"])}', body_style))
-            story.append(Paragraph(f'<b>Remediation:</b> {_escape(_plain_text(finding["remediation"]))}', body_style))
+            story.append(Paragraph(f'<b>Remediation:</b> {_escape(finding["remediation"])}', body_style))
             story.append(Spacer(1, 0.4 * cm))
 
     doc.build(story)

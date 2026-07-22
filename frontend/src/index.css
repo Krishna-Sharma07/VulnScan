@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+/* This app only has a light theme so far - color-scheme: light stops the
+   browser from applying its dark-mode default text color (near-white,
+   meant for dark backgrounds) to elements with no explicit Tailwind color
+   class, like bare <h1>/<h2> tags, when the OS is in dark mode. */
+:root {
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+  color: #111827;
+}
