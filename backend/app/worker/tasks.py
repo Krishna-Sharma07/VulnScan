@@ -5,9 +5,9 @@ from pathlib import Path
 from app.core.config import settings
 from app.db.session import SessionLocal
 from app.models.finding import Finding
-from app.models.scan_job import ScanJob, ScanStatus
+from app.models.scan_job import ScanJob, ScanStatus, ScanType
 from app.services.pdf_report import generate_pdf_report
-from app.services.scanner import ScanExecutionError, run_zap_scan
+from app.services.scanner import ScanExecutionError, run_sqlmap_scan, run_zap_scan
 from app.worker.celery_app import celery_app
 
 
@@ -35,6 +35,17 @@ def run_scan(scan_job_id: str) -> None:
             return
 
         scan_job.container_id = container_id
+
+        if scan_job.scan_type == ScanType.aggressive:
+            try:
+                findings += run_sqlmap_scan(scan_job.target_url)
+            except ScanExecutionError as exc:
+                # sqlmap is an addition on top of the ZAP scan above, which
+                # already succeeded - a broken/timed-out sqlmap run shouldn't
+                # throw away findings ZAP already found, so this only logs
+                # and continues rather than marking the whole job failed.
+                print(f"sqlmap scan failed for scan {scan_job.id}: {exc}")
+
         for finding in findings:
             db.add(Finding(scan_job_id=scan_job.id, **finding))
 

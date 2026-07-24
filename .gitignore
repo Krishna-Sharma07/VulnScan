@@ -10,3 +10,9 @@ dist/
 build/
 NOTES.md
 backend/reports/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

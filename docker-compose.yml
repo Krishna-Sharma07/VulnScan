@@ -44,6 +44,11 @@ services:
     volumes:
       - ./backend:/app
       - /var/run/docker.sock:/var/run/docker.sock
+      # Build context for the ZAP scanner image - lets the worker build it
+      # itself on first use instead of requiring a manual `docker build` step.
+      - ./scanner:/scanner:ro
+      # Same pattern for the sqlmap scanner image (opt-in "aggressive" scans).
+      - ./sqlmap-scanner:/sqlmap-scanner:ro
     environment:
       DATABASE_URL: postgresql://vulnscan:vulnscan@postgres:5432/vulnscan
       REDIS_URL: redis://redis:6379/0
