@@ -9,6 +9,11 @@ export default function Domains() {
   const [verifyError, setVerifyError] = useState<Record<string, string>>({});
   const [verifying, setVerifying] = useState<string | null>(null);
 
+  const [cookieEditing, setCookieEditing] = useState<Record<string, boolean>>({});
+  const [cookieInputs, setCookieInputs] = useState<Record<string, string>>({});
+  const [cookieSaving, setCookieSaving] = useState<string | null>(null);
+  const [cookieError, setCookieError] = useState<Record<string, string>>({});
+
   async function loadDomains() {
     const res = await api.get<Domain[]>("/api/domains");
     setDomains(res.data);
@@ -43,6 +48,42 @@ export default function Domains() {
       }));
     } finally {
       setVerifying(null);
+    }
+  }
+
+  async function handleSaveCookie(domain: Domain) {
+    setCookieSaving(domain.id);
+    setCookieError((prev) => ({ ...prev, [domain.id]: "" }));
+    try {
+      await api.put(`/api/domains/${domain.id}/auth-cookie`, {
+        auth_cookie: cookieInputs[domain.id] ?? "",
+      });
+      setCookieEditing((prev) => ({ ...prev, [domain.id]: false }));
+      setCookieInputs((prev) => ({ ...prev, [domain.id]: "" }));
+      await loadDomains();
+    } catch (err: any) {
+      setCookieError((prev) => ({
+        ...prev,
+        [domain.id]: err.response?.data?.detail ?? "Could not save cookie",
+      }));
+    } finally {
+      setCookieSaving(null);
+    }
+  }
+
+  async function handleClearCookie(domain: Domain) {
+    setCookieSaving(domain.id);
+    setCookieError((prev) => ({ ...prev, [domain.id]: "" }));
+    try {
+      await api.put(`/api/domains/${domain.id}/auth-cookie`, { auth_cookie: null });
+      await loadDomains();
+    } catch (err: any) {
+      setCookieError((prev) => ({
+        ...prev,
+        [domain.id]: err.response?.data?.detail ?? "Could not clear cookie",
+      }));
+    } finally {
+      setCookieSaving(null);
     }
   }
 
@@ -107,6 +148,73 @@ export default function Domains() {
                 )}
               </div>
             )}
+
+            <div className="mt-3 pt-3 border-t border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-gray-700">Auth cookie (for aggressive scans)</p>
+                  <p className="text-xs text-gray-500">
+                    Only needed if the target sits behind a login — sqlmap sends this cookie so it
+                    can reach pages a logged-out request can't.{" "}
+                    {domain.has_auth_cookie ? (
+                      <span className="text-green-700 font-medium">Cookie set.</span>
+                    ) : (
+                      <span>None set.</span>
+                    )}
+                  </p>
+                </div>
+                {!cookieEditing[domain.id] && (
+                  <button
+                    onClick={() => setCookieEditing((prev) => ({ ...prev, [domain.id]: true }))}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 shrink-0"
+                  >
+                    {domain.has_auth_cookie ? "Update" : "Set cookie"}
+                  </button>
+                )}
+              </div>
+
+              {cookieEditing[domain.id] && (
+                <div className="mt-2 flex gap-2">
+                  <input
+                    type="password"
+                    placeholder="security=low; PHPSESSID=..."
+                    value={cookieInputs[domain.id] ?? ""}
+                    onChange={(e) =>
+                      setCookieInputs((prev) => ({ ...prev, [domain.id]: e.target.value }))
+                    }
+                    className="flex-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm"
+                  />
+                  <button
+                    onClick={() => handleSaveCookie(domain)}
+                    disabled={cookieSaving === domain.id}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => {
+                      setCookieEditing((prev) => ({ ...prev, [domain.id]: false }));
+                      setCookieInputs((prev) => ({ ...prev, [domain.id]: "" }));
+                    }}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+              {domain.has_auth_cookie && !cookieEditing[domain.id] && (
+                <button
+                  onClick={() => handleClearCookie(domain)}
+                  disabled={cookieSaving === domain.id}
+                  className="mt-2 text-xs text-red-600 hover:underline disabled:opacity-50"
+                >
+                  Clear cookie
+                </button>
+              )}
+              {cookieError[domain.id] && (
+                <p className="text-red-600 text-xs mt-2">{cookieError[domain.id]}</p>
+              )}
+            </div>
           </div>
         ))}
         {domains.length === 0 && (

@@ -46,6 +46,7 @@ def run_zap_scan(target_url: str, scan_type: str) -> tuple[str, list[dict]]:
         container = client.containers.run(
             settings.docker_scanner_image,
             environment={"TARGET_URL": target_url, "SCAN_TYPE": scan_type},
+            network=settings.docker_scan_network,
             detach=True,
         )
     except docker.errors.ImageNotFound as exc:
@@ -68,7 +69,7 @@ def run_zap_scan(target_url: str, scan_type: str) -> tuple[str, list[dict]]:
     return container.id, _parse_findings(report, target_url)
 
 
-def run_sqlmap_scan(target_url: str) -> list[dict]:
+def run_sqlmap_scan(target_url: str, cookie: str | None = None) -> list[dict]:
     """Launches the sqlmap scanner container against target_url, blocks until
     it finishes, and returns a list of SQL-injection finding dicts.
 
@@ -81,14 +82,26 @@ def run_sqlmap_scan(target_url: str) -> list[dict]:
     "Parameter: ... / Type: ... / Title: ... / Payload: ..." block for every
     injectable parameter it finds, and docker-py's container.logs() captures
     that directly with no file-extraction step needed.
+
+    `cookie` is optional and unused by the normal scan flow today - some
+    targets (e.g. DVWA) sit behind a login/session before their vulnerable
+    pages are even reachable, so sqlmap needs a session cookie of its own to
+    get past that, same as a browser would. Authenticated-target scanning
+    isn't a full feature yet (no UI/flow collects a cookie from the user);
+    this parameter exists so it can be exercised directly for now.
     """
     client = docker.from_env()
     _ensure_image(client, settings.docker_sqlmap_image, "/sqlmap-scanner")
 
+    environment = {"TARGET_URL": target_url}
+    if cookie:
+        environment["SQLMAP_COOKIE"] = cookie
+
     try:
         container = client.containers.run(
             settings.docker_sqlmap_image,
-            environment={"TARGET_URL": target_url},
+            environment=environment,
+            network=settings.docker_scan_network,
             detach=True,
         )
     except docker.errors.ImageNotFound as exc:

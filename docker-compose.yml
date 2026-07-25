@@ -71,5 +71,24 @@ services:
     ports:
       - "5173:5173"
 
+  # DVWA (Damn Vulnerable Web Application) - a deliberately vulnerable PHP app
+  # used here as a controllable, self-hosted sqlmap test target, replacing
+  # dependence on shared public sandboxes like testphp.vulnweb.com (which
+  # started rate-limiting/blocking this network after the last aggressive
+  # scan - see NOTES.md section 16). Dev/test only, never exposed publicly.
+  dvwa:
+    image: vulnerables/web-dvwa
+    ports:
+      - "4280:80"
+
 volumes:
   postgres_data:
+
+# Named explicitly (instead of the auto-generated "<project>_default") so
+# scanner containers - launched as Docker-out-of-Docker *siblings* of the
+# worker, not children of it (see NOTES.md section 11) - can be attached to
+# this exact network by name and resolve compose service hostnames like
+# "dvwa", the same way "worker" resolves "postgres"/"redis".
+networks:
+  default:
+    name: vulnscan-network

@@ -38,7 +38,7 @@ def run_scan(scan_job_id: str) -> None:
 
         if scan_job.scan_type == ScanType.aggressive:
             try:
-                findings += run_sqlmap_scan(scan_job.target_url)
+                findings += run_sqlmap_scan(scan_job.target_url, cookie=scan_job.domain.auth_cookie)
             except ScanExecutionError as exc:
                 # sqlmap is an addition on top of the ZAP scan above, which
                 # already succeeded - a broken/timed-out sqlmap run shouldn't

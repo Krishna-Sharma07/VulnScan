@@ -29,6 +29,8 @@ export default function NewScan() {
     if (domain) setTargetUrl(`https://${domain.hostname}`);
   }
 
+  const selectedDomain = domains.find((d) => d.id === domainId);
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -103,6 +105,16 @@ export default function NewScan() {
             <option value="baseline">Baseline (passive, safe default)</option>
             <option value="aggressive">Aggressive (active scanning, more traffic)</option>
           </select>
+          {scanType === "aggressive" && selectedDomain && !selectedDomain.has_auth_cookie && (
+            <p className="text-xs text-amber-700 bg-amber-50 rounded-md px-3 py-2 mt-2">
+              If this target sits behind a login, sqlmap won't be able to reach the vulnerable
+              pages without a session cookie. Set one on the{" "}
+              <a href="/domains" className="underline">
+                Domains
+              </a>{" "}
+              page first.
+            </p>
+          )}
         </div>
         {error && <p className="text-sm text-red-600">{error}</p>}
         <button

@@ -22,6 +22,13 @@ class Domain(Base):
     verified_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
+    # Optional session cookie for targets that sit behind a login (e.g. DVWA -
+    # see NOTES.md section 17). Only read by aggressive/sqlmap scans. Stored
+    # in plaintext for now, same as the rest of this MVP's secrets handling -
+    # a real credential, not just config, so this is a known tradeoff to
+    # revisit (encryption at rest, redaction in logs) rather than an oversight.
+    auth_cookie = Column(String, nullable=True)
+
     scan_jobs = relationship("ScanJob", back_populates="domain")
 
     @property

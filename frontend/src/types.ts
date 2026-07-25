@@ -12,6 +12,7 @@ export interface Domain {
   hostname: string;
   verification_token: string;
   verified: boolean;
+  has_auth_cookie: boolean;
   created_at: string;
 }
 
