@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { extractErrorMessage } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 
 export default function Signup() {
@@ -7,18 +8,28 @@ export default function Signup() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+
+    // Checked client-side for immediate feedback, but the API's own
+    // min_length=8 (app/schemas/user.py) is the real guard - this form
+    // isn't the only way to reach POST /api/auth/signup.
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
     setSubmitting(true);
     try {
-      await signup(email, password);
+      await signup(email.trim(), password);
       navigate("/domains");
-    } catch (err: any) {
-      setError(err.response?.data?.detail ?? "Signup failed");
+    } catch (err) {
+      setError(extractErrorMessage(err, "Signup failed"));
     } finally {
       setSubmitting(false);
     }
@@ -33,6 +44,7 @@ export default function Signup() {
           <input
             type="email"
             required
+            autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
@@ -44,8 +56,22 @@ export default function Signup() {
             type="password"
             required
             minLength={8}
+            autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
+          />
+          <p className="mt-1 text-xs text-gray-500">At least 8 characters</p>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Confirm password</label>
+          <input
+            type="password"
+            required
+            minLength={8}
+            autoComplete="new-password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
             className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
           />
         </div>

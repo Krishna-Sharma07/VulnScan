@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.core.config import settings
+from app.core.crypto import encrypt_secret
 from app.db.session import get_db
 from app.models.domain import Domain
 from app.models.user import User
@@ -49,12 +50,14 @@ def set_auth_cookie(
     """Sets (or, with an empty/omitted body, clears) the session cookie used
     by aggressive scans against this domain's authenticated pages - see
     NOTES.md section 17. Never echoed back by any endpoint; DomainOut only
-    exposes whether one is set (`has_auth_cookie`), not its value."""
+    exposes whether one is set (`has_auth_cookie`), not its value. Stored
+    encrypted at rest (NOTES.md section 19) - only ever decrypted by the
+    worker, right before handing it to sqlmap."""
     domain = db.query(Domain).filter(Domain.id == domain_id, Domain.user_id == current_user.id).first()
     if domain is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Domain not found")
 
-    domain.auth_cookie = payload.auth_cookie or None
+    domain.auth_cookie = encrypt_secret(payload.auth_cookie) if payload.auth_cookie else None
     db.commit()
     db.refresh(domain)
     return DomainOut.from_model(domain)

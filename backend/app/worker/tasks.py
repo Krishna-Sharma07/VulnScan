@@ -2,7 +2,10 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
+from cryptography.fernet import InvalidToken
+
 from app.core.config import settings
+from app.core.crypto import decrypt_secret
 from app.db.session import SessionLocal
 from app.models.finding import Finding
 from app.models.scan_job import ScanJob, ScanStatus, ScanType
@@ -38,13 +41,16 @@ def run_scan(scan_job_id: str) -> None:
 
         if scan_job.scan_type == ScanType.aggressive:
             try:
-                findings += run_sqlmap_scan(scan_job.target_url, cookie=scan_job.domain.auth_cookie)
-            except ScanExecutionError as exc:
+                cookie = decrypt_secret(scan_job.domain.auth_cookie) if scan_job.domain.auth_cookie else None
+                findings += run_sqlmap_scan(scan_job.target_url, cookie=cookie)
+            except (ScanExecutionError, InvalidToken) as exc:
                 # sqlmap is an addition on top of the ZAP scan above, which
-                # already succeeded - a broken/timed-out sqlmap run shouldn't
-                # throw away findings ZAP already found, so this only logs
-                # and continues rather than marking the whole job failed.
-                print(f"sqlmap scan failed for scan {scan_job.id}: {exc}")
+                # already succeeded - a broken/timed-out sqlmap run, or a
+                # cookie that fails to decrypt (e.g. AUTH_COOKIE_ENCRYPTION_KEY
+                # rotated since it was set), shouldn't throw away findings ZAP
+                # already found, so this only logs and continues rather than
+                # marking the whole job failed.
+                print(f"sqlmap scan failed for scan {scan_job.id}: {exc!r}")
 
         for finding in findings:
             db.add(Finding(scan_job_id=scan_job.id, **finding))

@@ -11,6 +11,13 @@ class Settings(BaseSettings):
     secret_key: str = "change-me-in-production"
     access_token_expire_minutes: int = 60 * 24
 
+    # Symmetric key (Fernet, urlsafe-base64, 32 bytes) used to encrypt
+    # Domain.auth_cookie at rest - a real session credential, not app config,
+    # so it doesn't belong in the DB in plaintext (see NOTES.md). Dev-only
+    # placeholder below; generate a real one per environment with:
+    #   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    auth_cookie_encryption_key: str = "0u1vq0ravb7Kupo5OejQB9st1j09Vzl7mbrzu1JDDGc="
+
     # Database
     database_url: str = "postgresql://vulnscan:vulnscan@localhost:5432/vulnscan"
 

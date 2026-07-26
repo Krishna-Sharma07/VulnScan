@@ -1,14 +1,20 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 from app.models.user import PlanTier
 
 
 class UserCreate(BaseModel):
     email: EmailStr
-    password: str
+    # Length, not complexity rules (no forced uppercase/digit/symbol) -
+    # current guidance (NIST 800-63B) favors length over composition rules,
+    # which push people toward predictable substitutions ("Password1!")
+    # rather than actually harder-to-guess passwords. max_length is a sanity
+    # cap, not a security control - bcrypt itself only hashes the first 72
+    # bytes of whatever it's given.
+    password: str = Field(min_length=8, max_length=128)
 
 
 class UserLogin(BaseModel):

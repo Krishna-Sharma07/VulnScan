@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { extractErrorMessage } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 
 export default function Login() {
@@ -15,10 +16,10 @@ export default function Login() {
     setError(null);
     setSubmitting(true);
     try {
-      await login(email, password);
+      await login(email.trim(), password);
       navigate("/domains");
-    } catch (err: any) {
-      setError(err.response?.data?.detail ?? "Login failed");
+    } catch (err) {
+      setError(extractErrorMessage(err, "Login failed"));
     } finally {
       setSubmitting(false);
     }
@@ -33,6 +34,7 @@ export default function Login() {
           <input
             type="email"
             required
+            autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
@@ -43,6 +45,7 @@ export default function Login() {
           <input
             type="password"
             required
+            autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
