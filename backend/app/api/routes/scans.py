@@ -7,11 +7,13 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
+from app.core.plans import limits_for
 from app.db.session import get_db
 from app.models.domain import Domain
-from app.models.scan_job import ScanJob
+from app.models.scan_job import ScanJob, ScanType
 from app.models.user import User
 from app.schemas.scan import ScanCreate, ScanJobOut, ScanReportOut
+from app.services.billing import scans_used_this_month
 from app.worker.tasks import run_scan
 
 router = APIRouter(prefix="/api", tags=["scans"])
@@ -35,6 +37,23 @@ def create_scan(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Domain is not verified. Complete DNS verification before scanning it.",
         )
+
+    limits = limits_for(current_user.plan)
+    if payload.scan_type == ScanType.aggressive and not limits.aggressive_allowed:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Aggressive scans require a Pro or Enterprise plan. Upgrade on the Billing page.",
+        )
+    if limits.monthly_scan_limit is not None:
+        used = scans_used_this_month(db, current_user.id)
+        if used >= limits.monthly_scan_limit:
+            raise HTTPException(
+                status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                detail=(
+                    f"Monthly scan limit reached ({limits.monthly_scan_limit}/month on the "
+                    "free plan). Upgrade on the Billing page for unlimited scans."
+                ),
+            )
 
     parsed_target = urlparse(payload.target_url)
     if parsed_target.scheme not in ("http", "https"):

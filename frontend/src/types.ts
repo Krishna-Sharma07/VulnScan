@@ -45,3 +45,10 @@ export interface Finding {
 export interface ScanReport extends ScanJob {
   findings: Finding[];
 }
+
+export interface BillingUsage {
+  plan: PlanTier;
+  scans_used_this_month: number;
+  monthly_scan_limit: number | null; // null = unlimited
+  aggressive_allowed: boolean;
+}

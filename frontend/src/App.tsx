@@ -8,6 +8,7 @@ import Domains from "./pages/Domains";
 import NewScan from "./pages/NewScan";
 import History from "./pages/History";
 import ScanDetail from "./pages/ScanDetail";
+import Billing from "./pages/Billing";
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
             <Route path="/scan/new" element={<NewScan />} />
             <Route path="/scan/:id" element={<ScanDetail />} />
             <Route path="/history" element={<History />} />
+            <Route path="/billing" element={<Billing />} />
           </Route>
         </Route>
       </Routes>

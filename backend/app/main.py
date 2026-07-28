@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import auth, domains, scans
+from app.api.routes import auth, billing, domains, scans
 
 app = FastAPI(title="VulnScan Pro API")
 
@@ -22,6 +22,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(domains.router)
 app.include_router(scans.router)
+app.include_router(billing.router)
 
 
 @app.get("/health")

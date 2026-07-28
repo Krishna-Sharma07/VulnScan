@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
-import type { Domain, ScanType } from "../types";
+import type { BillingUsage, Domain, ScanType } from "../types";
 
 export default function NewScan() {
   const navigate = useNavigate();
@@ -9,6 +9,7 @@ export default function NewScan() {
   const [domainId, setDomainId] = useState("");
   const [targetUrl, setTargetUrl] = useState("");
   const [scanType, setScanType] = useState<ScanType>("baseline");
+  const [usage, setUsage] = useState<BillingUsage | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -21,7 +22,11 @@ export default function NewScan() {
         setTargetUrl(`https://${verified[0].hostname}`);
       }
     });
+    api.get<BillingUsage>("/api/billing/usage").then((res) => setUsage(res.data));
   }, []);
+
+  const quotaReached =
+    usage?.monthly_scan_limit != null && usage.scans_used_this_month >= usage.monthly_scan_limit;
 
   function handleDomainChange(id: string) {
     setDomainId(id);
@@ -103,8 +108,20 @@ export default function NewScan() {
             className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
           >
             <option value="baseline">Baseline (passive, safe default)</option>
-            <option value="aggressive">Aggressive (active scanning, more traffic)</option>
+            <option value="aggressive" disabled={usage != null && !usage.aggressive_allowed}>
+              Aggressive (active scanning, more traffic)
+              {usage != null && !usage.aggressive_allowed ? " - Pro/Enterprise only" : ""}
+            </option>
           </select>
+          {usage != null && !usage.aggressive_allowed && (
+            <p className="text-xs text-amber-700 bg-amber-50 rounded-md px-3 py-2 mt-2">
+              Aggressive scans require Pro or Enterprise.{" "}
+              <a href="/billing" className="underline">
+                Upgrade on the Billing page
+              </a>
+              .
+            </p>
+          )}
           {scanType === "aggressive" && selectedDomain && !selectedDomain.has_auth_cookie && (
             <p className="text-xs text-amber-700 bg-amber-50 rounded-md px-3 py-2 mt-2">
               If this target sits behind a login, sqlmap won't be able to reach the vulnerable
@@ -116,10 +133,20 @@ export default function NewScan() {
             </p>
           )}
         </div>
+        {quotaReached && (
+          <p className="text-sm text-amber-700 bg-amber-50 rounded-md px-3 py-2">
+            You've used all {usage!.monthly_scan_limit} scans included in the free plan this
+            month.{" "}
+            <a href="/billing" className="underline">
+              Upgrade on the Billing page
+            </a>{" "}
+            for unlimited scans.
+          </p>
+        )}
         {error && <p className="text-sm text-red-600">{error}</p>}
         <button
           type="submit"
-          disabled={submitting}
+          disabled={submitting || quotaReached}
           className="w-full bg-indigo-600 text-white rounded-md py-2 font-medium hover:bg-indigo-700 disabled:opacity-50"
         >
           {submitting ? "Starting..." : "Start scan"}

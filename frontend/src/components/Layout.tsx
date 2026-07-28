@@ -27,7 +27,15 @@ export default function Layout() {
               <NavLink to="/history" className={navLinkClass}>
                 History
               </NavLink>
-              <span className="text-sm text-gray-400 mx-2">{user.email}</span>
+              <NavLink to="/billing" className={navLinkClass}>
+                Billing
+              </NavLink>
+              <span className="text-sm text-gray-400 mx-2">
+                {user.email}{" "}
+                <span className="uppercase text-xs font-semibold text-indigo-600">
+                  {user.plan}
+                </span>
+              </span>
               <button
                 onClick={logout}
                 className="px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:bg-gray-100"
