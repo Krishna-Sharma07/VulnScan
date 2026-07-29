@@ -74,8 +74,11 @@ export default function NewScan() {
       <h1 className="text-2xl font-semibold mb-6">New Scan</h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700">Domain</label>
+          <label htmlFor="scan-domain" className="block text-sm font-medium text-gray-700">
+            Domain
+          </label>
           <select
+            id="scan-domain"
             value={domainId}
             onChange={(e) => handleDomainChange(e.target.value)}
             className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
@@ -88,8 +91,11 @@ export default function NewScan() {
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Target URL</label>
+          <label htmlFor="scan-target-url" className="block text-sm font-medium text-gray-700">
+            Target URL
+          </label>
           <input
+            id="scan-target-url"
             type="url"
             required
             value={targetUrl}
@@ -101,8 +107,11 @@ export default function NewScan() {
           </p>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Scan type</label>
+          <label htmlFor="scan-type" className="block text-sm font-medium text-gray-700">
+            Scan type
+          </label>
           <select
+            id="scan-type"
             value={scanType}
             onChange={(e) => setScanType(e.target.value as ScanType)}
             className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"

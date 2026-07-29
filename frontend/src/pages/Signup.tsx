@@ -40,8 +40,11 @@ export default function Signup() {
       <h1 className="text-2xl font-semibold mb-6">Create an account</h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700">Email</label>
+          <label htmlFor="signup-email" className="block text-sm font-medium text-gray-700">
+            Email
+          </label>
           <input
+            id="signup-email"
             type="email"
             required
             autoComplete="email"
@@ -51,8 +54,11 @@ export default function Signup() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Password</label>
+          <label htmlFor="signup-password" className="block text-sm font-medium text-gray-700">
+            Password
+          </label>
           <input
+            id="signup-password"
             type="password"
             required
             minLength={8}
@@ -64,8 +70,11 @@ export default function Signup() {
           <p className="mt-1 text-xs text-gray-500">At least 8 characters</p>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Confirm password</label>
+          <label htmlFor="signup-confirm-password" className="block text-sm font-medium text-gray-700">
+            Confirm password
+          </label>
           <input
+            id="signup-confirm-password"
             type="password"
             required
             minLength={8}

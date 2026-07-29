@@ -30,8 +30,11 @@ export default function Login() {
       <h1 className="text-2xl font-semibold mb-6">Log in</h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700">Email</label>
+          <label htmlFor="login-email" className="block text-sm font-medium text-gray-700">
+            Email
+          </label>
           <input
+            id="login-email"
             type="email"
             required
             autoComplete="email"
@@ -41,8 +44,11 @@ export default function Login() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Password</label>
+          <label htmlFor="login-password" className="block text-sm font-medium text-gray-700">
+            Password
+          </label>
           <input
+            id="login-password"
             type="password"
             required
             autoComplete="current-password"
