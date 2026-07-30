@@ -14,6 +14,7 @@ from app.models.scan_job import ScanJob, ScanType
 from app.models.user import User
 from app.schemas.scan import ScanCreate, ScanJobOut, ScanReportOut
 from app.services.billing import scans_used_this_month
+from app.services.ssrf_guard import UnsafeScanTargetError, assert_public_scan_target
 from app.worker.tasks import run_scan
 
 router = APIRouter(prefix="/api", tags=["scans"])
@@ -66,6 +67,11 @@ def create_scan(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"target_url host must exactly match the verified domain ({domain.hostname})",
         )
+
+    try:
+        assert_public_scan_target(domain.hostname)
+    except UnsafeScanTargetError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     scan_job = ScanJob(
         user_id=current_user.id,

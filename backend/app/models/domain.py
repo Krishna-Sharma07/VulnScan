@@ -23,10 +23,10 @@ class Domain(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     # Optional session cookie for targets that sit behind a login (e.g. DVWA -
-    # see NOTES.md section 17). Only read by aggressive/sqlmap scans. Stored
-    # in plaintext for now, same as the rest of this MVP's secrets handling -
-    # a real credential, not just config, so this is a known tradeoff to
-    # revisit (encryption at rest, redaction in logs) rather than an oversight.
+    # see NOTES.md section 17). Only read by aggressive/sqlmap scans. Encrypted
+    # at rest with Fernet (see app/core/crypto.py) - the API write path
+    # (PUT /api/domains/{id}/auth-cookie) encrypts before storing, and the
+    # worker decrypts it right before handing it to sqlmap.
     auth_cookie = Column(String, nullable=True)
 
     scan_jobs = relationship("ScanJob", back_populates="domain")

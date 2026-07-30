@@ -2,11 +2,13 @@ import io
 import json
 import re
 import tarfile
+from urllib.parse import urlparse
 
 import docker
 import docker.errors
 
 from app.core.config import settings
+from app.services.ssrf_guard import UnsafeScanTargetError, resolve_pinned_ip
 
 # ZAP's riskcode: 3=High, 2=Medium, 1=Low, 0=Informational.
 RISK_TO_SEVERITY = {"3": "high", "2": "medium", "1": "low", "0": "info"}
@@ -27,6 +29,38 @@ class ScanExecutionError(Exception):
     """Raised when the scan container never produced a usable report."""
 
 
+def _pin_target_dns(target_url: str) -> dict[str, str]:
+    """Re-checks the SSRF guard right before a scanner container launches,
+    then returns a Docker `extra_hosts` mapping ({hostname: ip}) that pins
+    the container's own DNS resolution of the target to the specific IP
+    just validated as public.
+
+    Re-checking here (not just once at scan-creation time) closes the
+    window between "scan queued" and "worker picks it up", during which
+    DNS could be repointed internally. Pinning via `extra_hosts` - which
+    Docker writes straight into the container's /etc/hosts, consulted
+    before DNS by every standard resolver (glibc, musl, the JVM, Python) -
+    closes the *other* half of the gap too: mid-scan DNS rebinding, where
+    the target's DNS changes again after the scan has already started
+    crawling. Once pinned, the scanner container never performs a fresh DNS
+    lookup for the target hostname at all - there's nothing left to rebind.
+    This isn't airtight against every conceivable HTTP client (one using
+    its own resolver that ignores /etc/hosts would bypass it), but ZAP and
+    sqlmap - the only tools this pins - both use their runtime's standard
+    resolver, so it holds for what's actually deployed here.
+    """
+    hostname = urlparse(target_url).hostname or target_url
+    try:
+        pinned_ip = resolve_pinned_ip(hostname)
+    except UnsafeScanTargetError as exc:
+        raise ScanExecutionError(str(exc)) from exc
+
+    if pinned_ip == hostname:
+        return {}  # target was already a bare IP literal - nothing to pin
+
+    return {hostname: pinned_ip}
+
+
 def run_zap_scan(target_url: str, scan_type: str) -> tuple[str, list[dict]]:
     """Launches the ZAP scanner container against target_url, blocks until it
     finishes, and returns (container_id, list of finding dicts).
@@ -39,6 +73,8 @@ def run_zap_scan(target_url: str, scan_type: str) -> tuple[str, list[dict]]:
     `get_archive` pulls the report file straight out of the stopped
     container over the Docker API as a tar stream.
     """
+    extra_hosts = _pin_target_dns(target_url)
+
     client = docker.from_env()
     _ensure_image(client, settings.docker_scanner_image, "/scanner")
 
@@ -47,6 +83,7 @@ def run_zap_scan(target_url: str, scan_type: str) -> tuple[str, list[dict]]:
             settings.docker_scanner_image,
             environment={"TARGET_URL": target_url, "SCAN_TYPE": scan_type},
             network=settings.docker_scan_network,
+            extra_hosts=extra_hosts,
             detach=True,
         )
     except docker.errors.ImageNotFound as exc:
@@ -90,6 +127,8 @@ def run_sqlmap_scan(target_url: str, cookie: str | None = None) -> list[dict]:
     isn't a full feature yet (no UI/flow collects a cookie from the user);
     this parameter exists so it can be exercised directly for now.
     """
+    extra_hosts = _pin_target_dns(target_url)
+
     client = docker.from_env()
     _ensure_image(client, settings.docker_sqlmap_image, "/sqlmap-scanner")
 
@@ -102,6 +141,7 @@ def run_sqlmap_scan(target_url: str, cookie: str | None = None) -> list[dict]:
             settings.docker_sqlmap_image,
             environment=environment,
             network=settings.docker_scan_network,
+            extra_hosts=extra_hosts,
             detach=True,
         )
     except docker.errors.ImageNotFound as exc:

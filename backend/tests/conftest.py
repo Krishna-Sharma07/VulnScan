@@ -102,6 +102,17 @@ def no_celery(monkeypatch):
     monkeypatch.setattr("app.api.routes.scans.run_scan.delay", lambda *a, **kw: None)
 
 
+@pytest.fixture(autouse=True)
+def no_ssrf_dns_lookup(monkeypatch):
+    """create_scan calls the real SSRF guard (app/services/ssrf_guard.py),
+    which does a real DNS lookup - most tests use made-up hostnames like
+    scantest.example.com that don't resolve, so without this every scan-
+    creation test would fail (or hang) on a real network call. Stubbed to a
+    no-op by default; tests that specifically exercise the SSRF guard
+    (test_scans.py, test_ssrf_guard.py) override it again per-test."""
+    monkeypatch.setattr("app.api.routes.scans.assert_public_scan_target", lambda hostname: None)
+
+
 def signup(client, email=None, password="testpassword123"):
     email = email or f"user_{uuid.uuid4().hex[:10]}@example.com"
     resp = client.post("/api/auth/signup", json={"email": email, "password": password})

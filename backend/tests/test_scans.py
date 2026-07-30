@@ -99,6 +99,21 @@ def test_create_scan_rejects_host_mismatch(auth_client, db_session):
     assert "must exactly match" in resp.json()["detail"]
 
 
+def test_create_scan_rejects_target_that_resolves_to_a_private_address(auth_client, db_session, monkeypatch):
+    from app.services.ssrf_guard import UnsafeScanTargetError
+
+    def _raise(hostname):
+        raise UnsafeScanTargetError(f"'{hostname}' resolves to a private/internal address (127.0.0.1)")
+
+    monkeypatch.setattr("app.api.routes.scans.assert_public_scan_target", _raise)
+
+    client, headers, user = auth_client
+    domain = _make_domain(db_session, uuid.UUID(user["id"]), hostname="rebound.example.com")
+    resp = client.post(SCAN_URL, json=_scan_body(domain), headers=headers)
+    assert resp.status_code == 400
+    assert "private/internal address" in resp.json()["detail"]
+
+
 def test_create_scan_succeeds_for_verified_domain(auth_client, db_session):
     client, headers, user = auth_client
     domain = _make_domain(db_session, uuid.UUID(user["id"]))
