@@ -30,6 +30,11 @@ jobs:
       # same server - see backend/tests/conftest.py for why.
       TEST_DATABASE_URL: postgresql://vulnscan:vulnscan@localhost:5432/vulnscan_test
       DATABASE_URL: postgresql://vulnscan:vulnscan@localhost:5432/vulnscan
+      # Throwaway CI-only values - app/core/config.py now requires these to
+      # be set explicitly (see NOTES.md), no insecure built-in default left
+      # to fall back on.
+      SECRET_KEY: ci-test-secret-key-not-used-anywhere-real
+      AUTH_COOKIE_ENCRYPTION_KEY: FbTT5PKFWCw1zkXkOMTUuGbuMf6k70xlEtR6KglBvec=
 
     steps:
       - uses: actions/checkout@v4

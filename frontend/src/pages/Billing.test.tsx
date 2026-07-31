@@ -87,4 +87,55 @@ describe("Billing", () => {
     await waitFor(() => expect(refreshUser).toHaveBeenCalled());
     expect(mockedGet).toHaveBeenCalledTimes(2); // initial load + reload after switching
   });
+
+  it("asks for confirmation before downgrading to Free, and does nothing on Cancel", async () => {
+    const refreshUser = vi.fn().mockResolvedValue(undefined);
+    mockedUseAuth.mockReturnValue({
+      user: { ...FREE_USER, plan: "pro" },
+      loading: false,
+      login: vi.fn(),
+      signup: vi.fn(),
+      logout: vi.fn(),
+      refreshUser,
+    });
+    mockUsage({ plan: "pro", scans_used_this_month: 5, monthly_scan_limit: null, aggressive_allowed: true });
+
+    const user = userEvent.setup();
+    render(<Billing />);
+
+    await screen.findByText(/5 scans this month \(unlimited\)/);
+    const switchButtons = await screen.findAllByRole("button", { name: "Switch" });
+    await user.click(switchButtons[0]); // Free is the first plan card
+
+    expect(await screen.findByText(/drop to 3 scans\/month/)).toBeInTheDocument();
+    expect(mockedPost).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByText(/drop to 3 scans\/month/)).not.toBeInTheDocument();
+    expect(mockedPost).not.toHaveBeenCalled();
+  });
+
+  it("downgrades to Free once the user confirms", async () => {
+    const refreshUser = vi.fn().mockResolvedValue(undefined);
+    mockedUseAuth.mockReturnValue({
+      user: { ...FREE_USER, plan: "pro" },
+      loading: false,
+      login: vi.fn(),
+      signup: vi.fn(),
+      logout: vi.fn(),
+      refreshUser,
+    });
+    mockUsage({ plan: "pro", scans_used_this_month: 5, monthly_scan_limit: null, aggressive_allowed: true });
+    mockedPost.mockResolvedValue({ data: { ...FREE_USER, plan: "free" } });
+
+    const user = userEvent.setup();
+    render(<Billing />);
+
+    const switchButtons = await screen.findAllByRole("button", { name: "Switch" });
+    await user.click(switchButtons[0]); // Free is the first plan card
+    await user.click(await screen.findByRole("button", { name: "Confirm downgrade" }));
+
+    await waitFor(() => expect(mockedPost).toHaveBeenCalledWith("/api/billing/upgrade", { plan: "free" }));
+    await waitFor(() => expect(refreshUser).toHaveBeenCalled());
+  });
 });

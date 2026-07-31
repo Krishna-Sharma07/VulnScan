@@ -1,5 +1,7 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.core.secrets import require_secret
+
 
 class Settings(BaseSettings):
     """Centralized app configuration, loaded from environment variables / .env."""
@@ -8,15 +10,23 @@ class Settings(BaseSettings):
 
     # App
     environment: str = "development"
-    secret_key: str = "change-me-in-production"
     access_token_expire_minutes: int = 60 * 24
 
-    # Symmetric key (Fernet, urlsafe-base64, 32 bytes) used to encrypt
-    # Domain.auth_cookie at rest - a real session credential, not app config,
-    # so it doesn't belong in the DB in plaintext (see NOTES.md). Dev-only
-    # placeholder below; generate a real one per environment with:
-    #   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-    auth_cookie_encryption_key: str = "0u1vq0ravb7Kupo5OejQB9st1j09Vzl7mbrzu1JDDGc="
+    # secret_key (JWT signing) and auth_cookie_encryption_key (Fernet key
+    # encrypting Domain.auth_cookie at rest, a real session credential - see
+    # NOTES.md) are real secrets, not config with a safe hardcoded default -
+    # both used to have one baked into this file, which meant a deployment
+    # that forgot to set the env var would silently sign tokens / encrypt
+    # data with a key visible to anyone reading the source. They're loaded
+    # via app.core.secrets instead, in model_post_init below, which fails
+    # startup loudly if either is missing rather than falling back to
+    # something insecure-but-working.
+    secret_key: str = ""
+    auth_cookie_encryption_key: str = ""
+
+    def model_post_init(self, __context) -> None:
+        self.secret_key = require_secret("SECRET_KEY")
+        self.auth_cookie_encryption_key = require_secret("AUTH_COOKIE_ENCRYPTION_KEY")
 
     # Database
     database_url: str = "postgresql://vulnscan:vulnscan@localhost:5432/vulnscan"

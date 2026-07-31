@@ -33,6 +33,7 @@ export default function Billing() {
   const { user, refreshUser } = useAuth();
   const [usage, setUsage] = useState<BillingUsage | null>(null);
   const [changingTo, setChangingTo] = useState<PlanTier | null>(null);
+  const [confirmingPlan, setConfirmingPlan] = useState<PlanTier | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   function loadUsage() {
@@ -43,6 +44,7 @@ export default function Billing() {
 
   async function changePlan(plan: PlanTier) {
     setError(null);
+    setConfirmingPlan(null);
     setChangingTo(plan);
     try {
       // Stands in for a real checkout - no payment gateway is wired up yet
@@ -54,6 +56,21 @@ export default function Billing() {
       setError(err.response?.data?.detail ?? "Could not change plan");
     } finally {
       setChangingTo(null);
+    }
+  }
+
+  // Free is the only tier with real, enforced limits below Pro/Enterprise
+  // today (see app/core/plans.py) - a switch to it is the only plan change
+  // that actually takes something away, so it's the only one worth pausing on.
+  function isDowngradeToFree(plan: PlanTier) {
+    return plan === "free" && user?.plan !== "free";
+  }
+
+  function selectPlan(plan: PlanTier) {
+    if (isDowngradeToFree(plan)) {
+      setConfirmingPlan(plan);
+    } else {
+      changePlan(plan);
     }
   }
 
@@ -93,13 +110,38 @@ export default function Billing() {
                   <li key={f}>&bull; {f}</li>
                 ))}
               </ul>
-              <button
-                disabled={isCurrent || changingTo !== null}
-                onClick={() => changePlan(plan.id)}
-                className="w-full rounded-md py-2 font-medium bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
-              >
-                {isCurrent ? "Current plan" : changingTo === plan.id ? "Switching..." : "Switch"}
-              </button>
+              {confirmingPlan === plan.id ? (
+                <div>
+                  <p className="text-xs text-red-600 mb-2">
+                    You'll drop to 3 scans/month and lose aggressive (sqlmap) scanning
+                    immediately. Continue?
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      disabled={changingTo !== null}
+                      onClick={() => changePlan(plan.id)}
+                      className="flex-1 rounded-md py-2 font-medium bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                    >
+                      {changingTo === plan.id ? "Switching..." : "Confirm downgrade"}
+                    </button>
+                    <button
+                      disabled={changingTo !== null}
+                      onClick={() => setConfirmingPlan(null)}
+                      className="flex-1 rounded-md py-2 font-medium border border-gray-300 hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  disabled={isCurrent || changingTo !== null}
+                  onClick={() => selectPlan(plan.id)}
+                  className="w-full rounded-md py-2 font-medium bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {isCurrent ? "Current plan" : changingTo === plan.id ? "Switching..." : "Switch"}
+                </button>
+              )}
             </div>
           );
         })}
