@@ -52,3 +52,36 @@ export interface BillingUsage {
   monthly_scan_limit: number | null; // null = unlimited
   aggressive_allowed: boolean;
 }
+
+export interface CheckoutOrder {
+  order_id: string;
+  amount: number; // paise
+  currency: string;
+  key_id: string;
+}
+
+// Razorpay Checkout.js (loaded via a plain <script> tag in index.html, not
+// an npm package - see index.html) attaches itself to window at runtime.
+// This just describes the small slice of its API the Billing page uses.
+export interface RazorpaySuccessResponse {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}
+
+export interface RazorpayOptions {
+  key: string;
+  amount: number;
+  currency: string;
+  order_id: string;
+  name: string;
+  description?: string;
+  handler: (response: RazorpaySuccessResponse) => void;
+  modal?: { ondismiss?: () => void };
+}
+
+declare global {
+  interface Window {
+    Razorpay: new (options: RazorpayOptions) => { open: () => void };
+  }
+}

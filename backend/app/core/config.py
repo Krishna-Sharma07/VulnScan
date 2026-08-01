@@ -24,9 +24,19 @@ class Settings(BaseSettings):
     secret_key: str = ""
     auth_cookie_encryption_key: str = ""
 
+    # Razorpay API keys - key_secret is a real secret (server-side only,
+    # used to sign/verify payments); key_id is not sensitive on its own
+    # (Razorpay's Checkout.js runs it in the browser by design) but is loaded
+    # the same way for consistency and because it still shouldn't have a
+    # committed default.
+    razorpay_key_id: str = ""
+    razorpay_key_secret: str = ""
+
     def model_post_init(self, __context) -> None:
         self.secret_key = require_secret("SECRET_KEY")
         self.auth_cookie_encryption_key = require_secret("AUTH_COOKIE_ENCRYPTION_KEY")
+        self.razorpay_key_id = require_secret("RAZORPAY_KEY_ID")
+        self.razorpay_key_secret = require_secret("RAZORPAY_KEY_SECRET")
 
     # Database
     database_url: str = "postgresql://vulnscan:vulnscan@localhost:5432/vulnscan"

@@ -12,3 +12,20 @@ class UsageOut(BaseModel):
 
 class UpgradeRequest(BaseModel):
     plan: PlanTier
+
+
+class CheckoutOrderRequest(BaseModel):
+    plan: PlanTier
+
+
+class CheckoutOrderOut(BaseModel):
+    order_id: str
+    amount: int  # paise
+    currency: str
+    key_id: str  # public - safe to send to the browser, Checkout.js needs it
+
+
+class CheckoutVerifyRequest(BaseModel):
+    razorpay_order_id: str
+    razorpay_payment_id: str
+    razorpay_signature: str

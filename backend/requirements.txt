@@ -17,6 +17,10 @@ dnspython==2.6.1
 cryptography==43.0.1
 reportlab==4.2.2
 email-validator==2.2.0
+razorpay==1.4.2
+# razorpay's client imports pkg_resources at import time; recent Python base
+# images no longer bundle setuptools (which provides it) by default.
+setuptools==75.1.0
 
 # Test suite only (see backend/tests/) - kept in the same file as runtime
 # deps since this project doesn't split a requirements-dev.txt yet.

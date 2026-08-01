@@ -35,6 +35,12 @@ jobs:
       # to fall back on.
       SECRET_KEY: ci-test-secret-key-not-used-anywhere-real
       AUTH_COOKIE_ENCRYPTION_KEY: FbTT5PKFWCw1zkXkOMTUuGbuMf6k70xlEtR6KglBvec=
+      # Throwaway too - tests mock app.services.billing._client rather than
+      # calling the real Razorpay API, so these values are never actually
+      # used for a network call, just needed to satisfy Settings' fail-fast
+      # secret check at import time.
+      RAZORPAY_KEY_ID: rzp_test_ci_placeholder
+      RAZORPAY_KEY_SECRET: ci-razorpay-secret-not-used-anywhere-real
 
     steps:
       - uses: actions/checkout@v4

@@ -5,6 +5,11 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>VulnScan Pro</title>
+    <!-- Razorpay's own hosted Checkout script - it defines window.Razorpay,
+         the payment popup used by the Billing page. Loaded from Razorpay
+         directly (not bundled) because that's how Razorpay ships and
+         updates it; there's no npm package that replaces it. -->
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
   </head>
   <body>
     <div id="root"></div>

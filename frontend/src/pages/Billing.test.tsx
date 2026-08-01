@@ -8,6 +8,7 @@ import type { BillingUsage, User } from "../types";
 
 vi.mock("../api/client", () => ({
   api: { get: vi.fn(), post: vi.fn() },
+  extractErrorMessage: (err: any, fallback: string) => err?.response?.data?.detail ?? fallback,
 }));
 vi.mock("../context/AuthContext", () => ({
   useAuth: vi.fn(),
@@ -27,6 +28,7 @@ describe("Billing", () => {
   beforeEach(() => {
     mockedGet.mockReset();
     mockedPost.mockReset();
+    delete (window as any).Razorpay;
   });
 
   it("highlights the current plan and shows usage", async () => {
@@ -63,7 +65,7 @@ describe("Billing", () => {
     expect(await screen.findByText(/5 scans this month \(unlimited\)/)).toBeInTheDocument();
   });
 
-  it("switches plan on click and refreshes both user and usage", async () => {
+  it("starts Razorpay checkout for Pro and applies the plan once payment verifies", async () => {
     const refreshUser = vi.fn().mockResolvedValue(undefined);
     mockedUseAuth.mockReturnValue({
       user: FREE_USER,
@@ -74,7 +76,24 @@ describe("Billing", () => {
       refreshUser,
     });
     mockUsage({ plan: "free", scans_used_this_month: 0, monthly_scan_limit: 3, aggressive_allowed: false });
-    mockedPost.mockResolvedValue({ data: { ...FREE_USER, plan: "pro" } });
+    mockedPost.mockImplementation((url: string) => {
+      if (url === "/api/billing/checkout/order") {
+        return Promise.resolve({
+          data: { order_id: "order_123", amount: 240000, currency: "INR", key_id: "rzp_test_abc" },
+        });
+      }
+      if (url === "/api/billing/checkout/verify") {
+        return Promise.resolve({ data: { ...FREE_USER, plan: "pro" } });
+      }
+      throw new Error(`unexpected POST ${url}`);
+    });
+
+    let capturedOptions: any;
+    const open = vi.fn();
+    (window as any).Razorpay = vi.fn().mockImplementation(function (options: any) {
+      capturedOptions = options;
+      return { open };
+    });
 
     const user = userEvent.setup();
     render(<Billing />);
@@ -83,9 +102,73 @@ describe("Billing", () => {
     const switchButtons = await screen.findAllByRole("button", { name: "Switch" });
     await user.click(switchButtons[0]); // Pro is the first non-free plan card
 
-    await waitFor(() => expect(mockedPost).toHaveBeenCalledWith("/api/billing/upgrade", { plan: "pro" }));
+    await waitFor(() =>
+      expect(mockedPost).toHaveBeenCalledWith("/api/billing/checkout/order", { plan: "pro" })
+    );
+    expect(open).toHaveBeenCalled();
+    expect(capturedOptions.order_id).toBe("order_123");
+    expect(capturedOptions.amount).toBe(240000);
+
+    // Simulate Razorpay's popup calling back into our handler after a
+    // successful payment - the plan should only change from this, not from
+    // the popup merely opening.
+    capturedOptions.handler({
+      razorpay_order_id: "order_123",
+      razorpay_payment_id: "pay_1",
+      razorpay_signature: "sig_1",
+    });
+
+    await waitFor(() =>
+      expect(mockedPost).toHaveBeenCalledWith("/api/billing/checkout/verify", {
+        razorpay_order_id: "order_123",
+        razorpay_payment_id: "pay_1",
+        razorpay_signature: "sig_1",
+      })
+    );
     await waitFor(() => expect(refreshUser).toHaveBeenCalled());
-    expect(mockedGet).toHaveBeenCalledTimes(2); // initial load + reload after switching
+  });
+
+  it("shows an error and never opens Razorpay if order creation fails", async () => {
+    mockedUseAuth.mockReturnValue({
+      user: FREE_USER,
+      loading: false,
+      login: vi.fn(),
+      signup: vi.fn(),
+      logout: vi.fn(),
+      refreshUser: vi.fn(),
+    });
+    mockUsage({ plan: "free", scans_used_this_month: 0, monthly_scan_limit: 3, aggressive_allowed: false });
+    mockedPost.mockRejectedValue({ response: { data: { detail: "checkout unavailable" } } });
+    const RazorpayCtor = vi.fn();
+    (window as any).Razorpay = RazorpayCtor;
+
+    const user = userEvent.setup();
+    render(<Billing />);
+
+    await screen.findByText(/0 \/ 3 scans used this month/);
+    const switchButtons = await screen.findAllByRole("button", { name: "Switch" });
+    await user.click(switchButtons[0]);
+
+    expect(await screen.findByText("checkout unavailable")).toBeInTheDocument();
+    expect(RazorpayCtor).not.toHaveBeenCalled();
+  });
+
+  it("shows a Contact us link for Enterprise instead of a Switch button", async () => {
+    mockedUseAuth.mockReturnValue({
+      user: FREE_USER,
+      loading: false,
+      login: vi.fn(),
+      signup: vi.fn(),
+      logout: vi.fn(),
+      refreshUser: vi.fn(),
+    });
+    mockUsage({ plan: "free", scans_used_this_month: 0, monthly_scan_limit: 3, aggressive_allowed: false });
+
+    render(<Billing />);
+
+    await screen.findByText(/0 \/ 3 scans used this month/);
+    const contactLink = screen.getByRole("link", { name: "Contact us" });
+    expect(contactLink).toHaveAttribute("href", expect.stringContaining("mailto:"));
   });
 
   it("asks for confirmation before downgrading to Free, and does nothing on Cancel", async () => {

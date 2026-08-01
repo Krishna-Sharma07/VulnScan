@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 
 from app.models.domain import Domain
 from app.models.scan_job import ScanJob, ScanType
+from app.models.user import PlanTier, User
 
 SCAN_URL = "/api/scan"
 
@@ -18,6 +19,17 @@ def _make_domain(db_session, user_id, hostname="scantest.example.com", verified=
     db_session.commit()
     db_session.refresh(domain)
     return domain
+
+
+def _upgrade_to_pro(db_session, user_id):
+    # These scan-gating tests care about "a user on Pro", not how they got
+    # there - actually buying Pro is Razorpay checkout's job (see
+    # test_billing.py), so set the plan directly rather than going through
+    # /api/billing/upgrade, which now rejects paid plans outright.
+    user = db_session.query(User).filter(User.id == user_id).one()
+    user.plan = PlanTier.pro
+    db_session.add(user)
+    db_session.commit()
 
 
 def _scan_body(domain, scan_type="baseline"):
@@ -133,7 +145,7 @@ def test_aggressive_scan_rejected_on_free_plan(auth_client, db_session):
 def test_aggressive_scan_allowed_after_upgrading_to_pro(auth_client, db_session):
     client, headers, user = auth_client
     domain = _make_domain(db_session, uuid.UUID(user["id"]))
-    client.post("/api/billing/upgrade", json={"plan": "pro"}, headers=headers)
+    _upgrade_to_pro(db_session, uuid.UUID(user["id"]))
     resp = client.post(SCAN_URL, json=_scan_body(domain, "aggressive"), headers=headers)
     assert resp.status_code == 201
 
@@ -170,7 +182,7 @@ def test_quota_lifted_immediately_after_upgrading(auth_client, db_session):
     for _ in range(3):
         client.post(SCAN_URL, json=body, headers=headers)
 
-    client.post("/api/billing/upgrade", json={"plan": "pro"}, headers=headers)
+    _upgrade_to_pro(db_session, uuid.UUID(user["id"]))
 
     resp = client.post(SCAN_URL, json=body, headers=headers)
     assert resp.status_code == 201

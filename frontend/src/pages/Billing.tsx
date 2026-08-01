@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { api } from "../api/client";
+import { api, extractErrorMessage } from "../api/client";
 import { useAuth } from "../context/AuthContext";
-import type { BillingUsage, PlanTier } from "../types";
+import type { BillingUsage, CheckoutOrder, PlanTier, RazorpaySuccessResponse } from "../types";
 
 const PLANS: {
   id: PlanTier;
@@ -42,19 +42,64 @@ export default function Billing() {
 
   useEffect(loadUsage, []);
 
-  async function changePlan(plan: PlanTier) {
+  // Free needs no payment, so it still goes through the direct endpoint -
+  // the backend rejects any other plan there now (see billing.py), since
+  // paid plans must go through real Razorpay checkout below.
+  async function switchToFree() {
     setError(null);
     setConfirmingPlan(null);
-    setChangingTo(plan);
+    setChangingTo("free");
     try {
-      // Stands in for a real checkout - no payment gateway is wired up yet
-      // (see NOTES.md), so this just confirms the plan change immediately.
-      await api.post("/api/billing/upgrade", { plan });
+      await api.post("/api/billing/upgrade", { plan: "free" });
       await refreshUser();
       loadUsage();
     } catch (err: any) {
-      setError(err.response?.data?.detail ?? "Could not change plan");
+      setError(extractErrorMessage(err, "Could not change plan"));
     } finally {
+      setChangingTo(null);
+    }
+  }
+
+  // Real Razorpay Checkout flow for paid plans: ask the backend to create an
+  // order (it decides the price - see app/core/plans.py - never something
+  // the browser can influence), open Razorpay's popup with that order, then
+  // send the payment result to the backend to verify the signature and
+  // actually apply the plan. The plan only changes after that verify call
+  // succeeds - opening the popup or completing payment in it doesn't, by
+  // itself, change anything on our side.
+  async function startCheckout(plan: PlanTier) {
+    setError(null);
+    setChangingTo(plan);
+    try {
+      const { data: order } = await api.post<CheckoutOrder>("/api/billing/checkout/order", {
+        plan,
+      });
+      const razorpay = new window.Razorpay({
+        key: order.key_id,
+        amount: order.amount,
+        currency: order.currency,
+        order_id: order.order_id,
+        name: "VulnScan Pro",
+        description: `Upgrade to ${plan}`,
+        handler: (response: RazorpaySuccessResponse) => {
+          api
+            .post("/api/billing/checkout/verify", response)
+            .then(async () => {
+              await refreshUser();
+              loadUsage();
+            })
+            .catch((err) => setError(extractErrorMessage(err, "Payment verification failed")))
+            .finally(() => setChangingTo(null));
+        },
+        modal: {
+          // User closed the popup without paying - not an error, just reset
+          // the button back to its normal state.
+          ondismiss: () => setChangingTo(null),
+        },
+      });
+      razorpay.open();
+    } catch (err: any) {
+      setError(extractErrorMessage(err, "Could not start checkout"));
       setChangingTo(null);
     }
   }
@@ -69,8 +114,10 @@ export default function Billing() {
   function selectPlan(plan: PlanTier) {
     if (isDowngradeToFree(plan)) {
       setConfirmingPlan(plan);
+    } else if (plan === "free") {
+      switchToFree();
     } else {
-      changePlan(plan);
+      startCheckout(plan);
     }
   }
 
@@ -78,8 +125,8 @@ export default function Billing() {
     <div>
       <h1 className="text-2xl font-semibold mb-2">Billing</h1>
       <p className="text-gray-600 mb-6">
-        Checkout isn't wired up to a real payment gateway yet - switching plans below applies
-        immediately for testing.
+        Upgrades to Pro are processed through Razorpay Checkout. Downgrading to Free applies
+        immediately with no charge.
       </p>
 
       {usage && (
@@ -119,7 +166,7 @@ export default function Billing() {
                   <div className="flex gap-2">
                     <button
                       disabled={changingTo !== null}
-                      onClick={() => changePlan(plan.id)}
+                      onClick={() => switchToFree()}
                       className="flex-1 rounded-md py-2 font-medium bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
                     >
                       {changingTo === plan.id ? "Switching..." : "Confirm downgrade"}
@@ -133,6 +180,16 @@ export default function Billing() {
                     </button>
                   </div>
                 </div>
+              ) : plan.id === "enterprise" && !isCurrent ? (
+                // No self-serve price exists for Enterprise (see PLANS
+                // above) - Razorpay checkout needs an amount up front, so
+                // this stays a manual/sales process instead of a fake price.
+                <a
+                  href="mailto:sales@vulnscanpro.example.com?subject=Enterprise%20plan"
+                  className="w-full text-center rounded-md py-2 font-medium border border-indigo-600 text-indigo-600 hover:bg-indigo-50"
+                >
+                  Contact us
+                </a>
               ) : (
                 <button
                   disabled={isCurrent || changingTo !== null}
