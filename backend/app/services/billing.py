@@ -6,18 +6,29 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.plans import price_for_checkout
+from app.models.code_scan_job import CodeScanJob
 from app.models.payment_order import PaymentOrder, PaymentOrderStatus
 from app.models.scan_job import ScanJob
 from app.models.user import PlanTier, User
 
 
 def scans_used_this_month(db: Session, user_id: uuid.UUID) -> int:
+    """Counts both live-URL scans (ScanJob) and uploaded-code scans
+    (CodeScanJob) against the same monthly quota - both spin up a scanner
+    container and consume the same worker capacity, so the free-tier limit
+    is about total scan volume, not which input mode was used."""
     month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    return (
+    url_scans = (
         db.query(ScanJob)
         .filter(ScanJob.user_id == user_id, ScanJob.created_at >= month_start)
         .count()
     )
+    code_scans = (
+        db.query(CodeScanJob)
+        .filter(CodeScanJob.user_id == user_id, CodeScanJob.created_at >= month_start)
+        .count()
+    )
+    return url_scans + code_scans
 
 
 class CheckoutError(Exception):

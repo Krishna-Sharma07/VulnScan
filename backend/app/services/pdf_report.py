@@ -89,3 +89,72 @@ def generate_pdf_report(scan_job, findings: list[dict], output_path: str) -> Non
             story.append(Spacer(1, 0.4 * cm))
 
     doc.build(story)
+
+
+def generate_code_pdf_report(code_scan_job, findings: list[dict], output_path: str) -> None:
+    """Same layout as generate_pdf_report, adapted for static-analysis
+    findings (source + file/line instead of a scanned URL)."""
+    styles = getSampleStyleSheet()
+    title_style = styles["Title"]
+    heading_style = styles["Heading2"]
+    body_style = ParagraphStyle("Body", parent=styles["BodyText"], spaceAfter=4)
+    meta_style = ParagraphStyle("Meta", parent=styles["Normal"], textColor=colors.HexColor("#4b5563"))
+
+    doc = SimpleDocTemplate(output_path, pagesize=A4, topMargin=2 * cm, bottomMargin=2 * cm)
+    story = []
+
+    story.append(Paragraph("VulnScan Pro — Code Scan Report", title_style))
+    story.append(Paragraph(_escape(code_scan_job.filename), meta_style))
+    story.append(
+        Paragraph(
+            f"Completed: {code_scan_job.finished_at.strftime('%Y-%m-%d %H:%M UTC') if code_scan_job.finished_at else 'n/a'}",
+            meta_style,
+        )
+    )
+    story.append(Spacer(1, 0.5 * cm))
+
+    counts = {sev: 0 for sev in SEVERITY_ORDER}
+    for finding in findings:
+        counts[finding["severity"]] = counts.get(finding["severity"], 0) + 1
+
+    summary_data = [["Severity", "Count"]] + [[sev.capitalize(), str(counts[sev])] for sev in SEVERITY_ORDER]
+    summary_table = Table(summary_data, colWidths=[6 * cm, 3 * cm])
+    summary_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#111827")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#d1d5db")),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f9fafb")]),
+            ]
+        )
+    )
+    story.append(summary_table)
+    story.append(Spacer(1, 1 * cm))
+
+    if not findings:
+        story.append(Paragraph("No findings were reported for this scan.", body_style))
+    else:
+        ordered = sorted(findings, key=lambda f: SEVERITY_ORDER.index(f["severity"]))
+        for finding in ordered:
+            badge_color = SEVERITY_COLORS.get(finding["severity"], "#6b7280")
+            location = finding["affected_file"]
+            if finding.get("line_number"):
+                location += f":{finding['line_number']}"
+            story.append(
+                Paragraph(
+                    f'<font color="{badge_color}"><b>[{finding["severity"].upper()}]</b></font> '
+                    f'{_escape(finding["title"])}',
+                    heading_style,
+                )
+            )
+            story.append(Paragraph(f'<b>Source:</b> {_escape(finding["source"])}', body_style))
+            story.append(Paragraph(f'<b>Location:</b> {_escape(location)}', body_style))
+            story.append(Paragraph(f'<b>Description:</b> {_escape(finding["description"])}', body_style))
+            if finding.get("evidence"):
+                story.append(Paragraph(f'<b>Evidence:</b> {_escape(finding["evidence"])}', body_style))
+            story.append(Paragraph(f'<b>Remediation:</b> {_escape(finding["remediation"])}', body_style))
+            story.append(Spacer(1, 0.4 * cm))
+
+    doc.build(story)

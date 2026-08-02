@@ -5,6 +5,8 @@ import pytest
 
 import app.worker.tasks as tasks
 from app.core.crypto import encrypt_secret
+from app.models.code_finding import CodeFinding
+from app.models.code_scan_job import CodeScanJob
 from app.models.domain import Domain
 from app.models.finding import Finding
 from app.models.scan_job import ScanJob, ScanStatus, ScanType
@@ -207,3 +209,116 @@ def test_run_scan_is_noop_when_scan_job_missing(monkeypatch, reports_dir):
     monkeypatch.setattr(tasks, "run_zap_scan", lambda *a, **kw: pytest.fail("should not be called"))
 
     tasks.run_scan(str(uuid.uuid4()))  # must not raise
+
+
+# ---------------------------------------------------------------------------
+# run_code_scan_task - the uploaded-code counterpart of run_scan above.
+# ---------------------------------------------------------------------------
+
+CODE_FINDING = {
+    "source": "bandit",
+    "vuln_type": "B105",
+    "severity": "medium",
+    "title": "hardcoded_password_string",
+    "description": "Possible hardcoded password",
+    "evidence": "password = 'hunter2'",
+    "remediation": "Review and remediate the flagged code pattern.",
+    "affected_file": "src/app.py",
+    "line_number": 12,
+}
+
+
+def _make_code_scan_job(tmp_path) -> str:
+    db = _db()
+    user = User(email=f"codeworker_{uuid.uuid4().hex[:10]}@example.com", hashed_password="x")
+    db.add(user)
+    db.flush()
+
+    upload_path = tmp_path / f"{uuid.uuid4()}.zip"
+    upload_path.write_bytes(b"PK\x03\x04fake zip bytes")
+
+    code_scan_job = CodeScanJob(
+        user_id=user.id,
+        filename="myproject.zip",
+        upload_path=str(upload_path),
+        status=ScanStatus.pending,
+    )
+    db.add(code_scan_job)
+    db.commit()
+    code_scan_job_id = str(code_scan_job.id)
+    db.close()
+    return code_scan_job_id
+
+
+def _reload_code_scan(code_scan_job_id: str):
+    db = _db()
+    code_scan_job = (
+        db.query(CodeScanJob).filter(CodeScanJob.id == uuid.UUID(code_scan_job_id)).first()
+    )
+    findings = db.query(CodeFinding).filter(CodeFinding.code_scan_job_id == code_scan_job.id).all()
+    db.close()
+    return code_scan_job, findings
+
+
+def test_run_code_scan_task_completes_and_persists_findings_and_pdf(monkeypatch, reports_dir, tmp_path):
+    code_scan_job_id = _make_code_scan_job(tmp_path)
+    monkeypatch.setattr(tasks, "run_code_scan", lambda zip_bytes: ("container-code1", [CODE_FINDING]))
+
+    tasks.run_code_scan_task(code_scan_job_id)
+
+    code_scan_job, findings = _reload_code_scan(code_scan_job_id)
+    assert code_scan_job.status == ScanStatus.completed
+    assert code_scan_job.container_id == "container-code1"
+    assert len(findings) == 1
+    assert findings[0].title == "hardcoded_password_string"
+    assert code_scan_job.report_path is not None
+    assert (reports_dir / f"code-{code_scan_job.id}.pdf").exists()
+
+
+def test_run_code_scan_task_deletes_upload_after_completion(monkeypatch, reports_dir, tmp_path):
+    code_scan_job_id = _make_code_scan_job(tmp_path)
+    monkeypatch.setattr(tasks, "run_code_scan", lambda zip_bytes: ("c1", []))
+
+    tasks.run_code_scan_task(code_scan_job_id)
+
+    code_scan_job, _ = _reload_code_scan(code_scan_job_id)
+    assert not __import__("pathlib").Path(code_scan_job.upload_path).exists()
+
+
+def test_run_code_scan_task_marks_failed_when_scan_errors(monkeypatch, reports_dir, tmp_path):
+    code_scan_job_id = _make_code_scan_job(tmp_path)
+
+    def _boom(zip_bytes):
+        raise ScanExecutionError("scan failed")
+
+    monkeypatch.setattr(tasks, "run_code_scan", _boom)
+
+    tasks.run_code_scan_task(code_scan_job_id)
+
+    code_scan_job, findings = _reload_code_scan(code_scan_job_id)
+    assert code_scan_job.status == ScanStatus.failed
+    assert findings == []
+    assert code_scan_job.report_path is None
+
+
+def test_run_code_scan_task_completes_even_when_pdf_generation_fails(monkeypatch, reports_dir, tmp_path):
+    code_scan_job_id = _make_code_scan_job(tmp_path)
+    monkeypatch.setattr(tasks, "run_code_scan", lambda zip_bytes: ("c1", [CODE_FINDING]))
+
+    def _boom(code_scan_job, findings, output_path):
+        raise RuntimeError("reportlab exploded")
+
+    monkeypatch.setattr(tasks, "generate_code_pdf_report", _boom)
+
+    tasks.run_code_scan_task(code_scan_job_id)
+
+    code_scan_job, findings = _reload_code_scan(code_scan_job_id)
+    assert code_scan_job.status == ScanStatus.completed
+    assert len(findings) == 1
+    assert code_scan_job.report_path is None
+
+
+def test_run_code_scan_task_is_noop_when_job_missing(monkeypatch, reports_dir):
+    monkeypatch.setattr(tasks, "run_code_scan", lambda *a, **kw: pytest.fail("should not be called"))
+
+    tasks.run_code_scan_task(str(uuid.uuid4()))  # must not raise

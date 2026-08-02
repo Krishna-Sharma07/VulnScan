@@ -2,6 +2,8 @@
 via Base.metadata, even though nothing in this file references them directly."""
 
 from app.db.base_class import Base  # noqa: F401
+from app.models.code_finding import CodeFinding  # noqa: F401
+from app.models.code_scan_job import CodeScanJob  # noqa: F401
 from app.models.domain import Domain  # noqa: F401
 from app.models.finding import Finding  # noqa: F401
 from app.models.payment_order import PaymentOrder  # noqa: F401

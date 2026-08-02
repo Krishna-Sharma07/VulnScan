@@ -49,6 +49,8 @@ services:
       - ./scanner:/scanner:ro
       # Same pattern for the sqlmap scanner image (opt-in "aggressive" scans).
       - ./sqlmap-scanner:/sqlmap-scanner:ro
+      # Same pattern again for the bandit/safety code-scanner image (uploaded-code scans).
+      - ./code-scanner:/code-scanner:ro
     environment:
       DATABASE_URL: postgresql://vulnscan:vulnscan@postgres:5432/vulnscan
       REDIS_URL: redis://redis:6379/0

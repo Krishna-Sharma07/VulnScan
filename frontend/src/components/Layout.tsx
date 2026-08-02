@@ -24,6 +24,9 @@ export default function Layout() {
               <NavLink to="/scan/new" className={navLinkClass}>
                 New Scan
               </NavLink>
+              <NavLink to="/code-scan" className={navLinkClass}>
+                Code Scan
+              </NavLink>
               <NavLink to="/history" className={navLinkClass}>
                 History
               </NavLink>

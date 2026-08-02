@@ -100,6 +100,7 @@ def no_celery(monkeypatch):
     should trigger. Stub the dispatch call itself; the task's own logic
     isn't exercised by these tests."""
     monkeypatch.setattr("app.api.routes.scans.run_scan.delay", lambda *a, **kw: None)
+    monkeypatch.setattr("app.api.routes.code_scans.run_code_scan_task.delay", lambda *a, **kw: None)
 
 
 @pytest.fixture(autouse=True)

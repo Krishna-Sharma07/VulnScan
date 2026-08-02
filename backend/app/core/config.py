@@ -51,6 +51,16 @@ class Settings(BaseSettings):
     docker_sqlmap_image: str = "vulnscan/sqlmap-scanner:latest"
     sqlmap_timeout_seconds: int = 900  # 15 min hard cap - runs in addition to the ZAP scan above
 
+    docker_code_scanner_image: str = "vulnscan/code-scanner:latest"
+    code_scan_timeout_seconds: int = 600  # 10 min hard cap - static analysis only, no network scanning
+
+    # Uploaded code archives are capped well below the container's own
+    # uncompressed zip-bomb guard (code-scanner/entrypoint.sh) - rejecting an
+    # oversized *compressed* file at the API layer, before it ever reaches a
+    # container, is cheaper than let it through and rely on the in-container
+    # check alone.
+    code_scan_max_upload_bytes: int = 20 * 1024 * 1024  # 20MB
+
     # Scanner containers are launched as Docker-out-of-Docker siblings of the
     # worker (see NOTES.md section 11) - attaching them to this network lets
     # them resolve other compose services by hostname (e.g. "dvwa"), not just
@@ -63,6 +73,12 @@ class Settings(BaseSettings):
     # here is immediately visible to the api process too - no extra volume
     # needed for this one, unlike the scanner container (see NOTES.md).
     reports_dir: str = "reports"
+
+    # Uploaded code archives, spooled to disk between the API request that
+    # receives them and the worker task that reads them - same bind-mount-
+    # shared-/app-directory pattern reports_dir relies on (see the comment
+    # above), just in the opposite direction (api writes, worker reads).
+    uploads_dir: str = "uploads"
 
     # Domain verification
     verification_txt_prefix: str = "vulnscan-verify"

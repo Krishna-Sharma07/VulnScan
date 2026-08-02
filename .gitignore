@@ -10,6 +10,7 @@ dist/
 build/
 NOTES.md
 backend/reports/
+backend/uploads/
 
 # Editor / OS
 .vscode/

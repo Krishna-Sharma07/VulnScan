@@ -9,6 +9,8 @@ import NewScan from "./pages/NewScan";
 import History from "./pages/History";
 import ScanDetail from "./pages/ScanDetail";
 import Billing from "./pages/Billing";
+import CodeScan from "./pages/CodeScan";
+import CodeScanDetail from "./pages/CodeScanDetail";
 
 export default function App() {
   return (
@@ -24,6 +26,8 @@ export default function App() {
             <Route path="/scan/new" element={<NewScan />} />
             <Route path="/scan/:id" element={<ScanDetail />} />
             <Route path="/history" element={<History />} />
+            <Route path="/code-scan" element={<CodeScan />} />
+            <Route path="/code-scan/:id" element={<CodeScanDetail />} />
             <Route path="/billing" element={<Billing />} />
           </Route>
         </Route>

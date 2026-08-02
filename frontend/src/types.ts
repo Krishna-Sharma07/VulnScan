@@ -46,6 +46,32 @@ export interface ScanReport extends ScanJob {
   findings: Finding[];
 }
 
+export interface CodeScanJob {
+  id: string;
+  filename: string;
+  status: ScanStatus;
+  created_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+}
+
+export interface CodeFinding {
+  id: string;
+  source: string; // "bandit" | "safety"
+  vuln_type: string;
+  severity: Severity;
+  title: string;
+  description: string;
+  evidence: string | null;
+  remediation: string;
+  affected_file: string;
+  line_number: number | null;
+}
+
+export interface CodeScanReport extends CodeScanJob {
+  findings: CodeFinding[];
+}
+
 export interface BillingUsage {
   plan: PlanTier;
   scans_used_this_month: number;
