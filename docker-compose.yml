@@ -22,7 +22,10 @@ services:
 
   api:
     build: ./backend
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    # Applies pending Alembic migrations before serving - without this, a
+    # fresh `docker compose up` on an empty Postgres volume boots the API
+    # against a database with no tables at all.
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     volumes:
       - ./backend:/app
     ports:

@@ -12,13 +12,13 @@ const PLANS: {
   {
     id: "free",
     name: "Free",
-    price: "$0",
+    price: "₹0",
     features: ["3 scans / month", "Baseline (passive) scans only", "PDF reports"],
   },
   {
     id: "pro",
     name: "Pro",
-    price: "$29/mo",
+    price: "₹2,400/mo",
     features: ["Unlimited scans", "Aggressive scans (sqlmap)", "PDF reports"],
   },
   {
