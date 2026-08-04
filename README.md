@@ -65,12 +65,10 @@ scanner/            ZAP scanner image (build context)
 sqlmap-scanner/    sqlmap scanner image (build context)
 code-scanner/      bandit/safety scanner image (build context)
 docker-compose.yml  Full local stack definition
-NOTES.md            Dated, cumulative build log - the "why" behind every decision
 ```
 
 ## Known limitations
 
 - No Razorpay webhook (server-to-server payment confirmation) - the checkout flow relies on the browser completing the final verify call. Needs a public HTTPS endpoint, so it's deferred until this is deployed somewhere real.
 - Secrets are loaded from environment variables via a pluggable-provider seam (`app/core/secrets.py`), but no real KMS/secrets-manager backend is wired up yet.
-- Code scanning only supports Python codebases (bandit/safety are both Python-ecosystem tools).
-- This is a local/demo build, not deployed anywhere - see `NOTES.md` for the full reasoning trail if you want the details behind any of the above.
+- Code scanning only supports Python codebases (bandit/safety are both Python-ecosystem tools). details behind any of the above.
