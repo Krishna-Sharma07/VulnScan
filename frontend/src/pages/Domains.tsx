@@ -1,9 +1,11 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { api } from "../api/client";
+import Tag from "../components/Tag";
 import type { Domain } from "../types";
 
 export default function Domains() {
   const [domains, setDomains] = useState<Domain[]>([]);
+  const [loading, setLoading] = useState(true);
   const [hostname, setHostname] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [verifyError, setVerifyError] = useState<Record<string, string>>({});
@@ -17,6 +19,7 @@ export default function Domains() {
   async function loadDomains() {
     const res = await api.get<Domain[]>("/api/domains");
     setDomains(res.data);
+    setLoading(false);
   }
 
   useEffect(() => {
@@ -89,7 +92,7 @@ export default function Domains() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold mb-6">Domains</h1>
+      <h1 className="font-mono text-2xl font-semibold text-ink mb-6">Domains</h1>
 
       <form onSubmit={handleAdd} className="flex gap-2 mb-8 max-w-md">
         <input
@@ -98,36 +101,34 @@ export default function Domains() {
           placeholder="example.com"
           value={hostname}
           onChange={(e) => setHostname(e.target.value)}
-          className="flex-1 rounded-md border border-gray-300 px-3 py-2"
+          className="flex-1 border border-hairline bg-surface text-ink px-3 py-2 focus:ring-2 focus:ring-signal focus:outline-none"
         />
         <button
           type="submit"
-          className="bg-indigo-600 text-white rounded-md px-4 py-2 font-medium hover:bg-indigo-700"
+          className="bg-signal text-surface px-4 py-2 font-mono font-medium hover:bg-signal-dark focus:ring-2 focus:ring-signal focus:outline-none"
         >
           Add domain
         </button>
       </form>
-      {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
+      {error && <p className="text-sm text-critical mb-4">{error}</p>}
 
       <div className="space-y-4">
         {domains.map((domain) => (
-          <div key={domain.id} className="bg-white border border-gray-200 rounded-lg p-4">
+          <div key={domain.id} className="bg-surface border border-hairline p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium">{domain.hostname}</p>
-                <p className="text-xs text-gray-500">
+                <p className="font-medium text-ink">{domain.hostname}</p>
+                <p className="text-xs text-muted">
                   Added {new Date(domain.created_at).toLocaleString()}
                 </p>
               </div>
               {domain.verified ? (
-                <span className="text-xs font-semibold px-2 py-1 rounded-full bg-green-100 text-green-700">
-                  Verified
-                </span>
+                <Tag tone="low">Verified</Tag>
               ) : (
                 <button
                   onClick={() => handleVerify(domain)}
                   disabled={verifying === domain.id}
-                  className="text-xs font-semibold px-3 py-1.5 rounded-md bg-amber-100 text-amber-800 hover:bg-amber-200 disabled:opacity-50"
+                  className="text-xs font-mono font-semibold px-3 py-1.5 border border-medium text-medium hover:bg-paper disabled:opacity-50 focus:ring-2 focus:ring-signal focus:outline-none"
                 >
                   {verifying === domain.id ? "Checking..." : "Check verification"}
                 </button>
@@ -135,29 +136,29 @@ export default function Domains() {
             </div>
 
             {!domain.verified && (
-              <div className="mt-3 text-sm bg-gray-50 rounded-md p-3">
-                <p className="text-gray-600 mb-1">
-                  Add a DNS TXT record on <strong>{domain.hostname}</strong> with this value,
-                  then click "Check verification":
+              <div className="mt-3 text-sm bg-paper p-3">
+                <p className="text-muted mb-1">
+                  Add a DNS TXT record on <strong className="text-ink">{domain.hostname}</strong>{" "}
+                  with this value, then click "Check verification":
                 </p>
-                <code className="block bg-white border border-gray-200 rounded px-2 py-1 text-xs break-all">
+                <code className="block bg-surface border border-hairline px-2 py-1 text-xs break-all font-mono">
                   vulnscan-verify={domain.verification_token}
                 </code>
                 {verifyError[domain.id] && (
-                  <p className="text-red-600 text-xs mt-2">{verifyError[domain.id]}</p>
+                  <p className="text-critical text-xs mt-2">{verifyError[domain.id]}</p>
                 )}
               </div>
             )}
 
-            <div className="mt-3 pt-3 border-t border-gray-100">
+            <div className="mt-3 pt-3 border-t border-hairline">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-medium text-gray-700">Auth cookie (for aggressive scans)</p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs font-medium text-ink">Auth cookie (for aggressive scans)</p>
+                  <p className="text-xs text-muted">
                     Only needed if the target sits behind a login — sqlmap sends this cookie so it
                     can reach pages a logged-out request can't.{" "}
                     {domain.has_auth_cookie ? (
-                      <span className="text-green-700 font-medium">Cookie set.</span>
+                      <span className="text-low font-medium">Cookie set.</span>
                     ) : (
                       <span>None set.</span>
                     )}
@@ -166,7 +167,7 @@ export default function Domains() {
                 {!cookieEditing[domain.id] && (
                   <button
                     onClick={() => setCookieEditing((prev) => ({ ...prev, [domain.id]: true }))}
-                    className="text-xs font-semibold px-3 py-1.5 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 shrink-0"
+                    className="text-xs font-mono font-semibold px-3 py-1.5 border border-hairline text-ink hover:bg-paper shrink-0 focus:ring-2 focus:ring-signal focus:outline-none"
                   >
                     {domain.has_auth_cookie ? "Update" : "Set cookie"}
                   </button>
@@ -182,12 +183,12 @@ export default function Domains() {
                     onChange={(e) =>
                       setCookieInputs((prev) => ({ ...prev, [domain.id]: e.target.value }))
                     }
-                    className="flex-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm"
+                    className="flex-1 border border-hairline bg-surface text-ink px-3 py-1.5 text-sm focus:ring-2 focus:ring-signal focus:outline-none"
                   />
                   <button
                     onClick={() => handleSaveCookie(domain)}
                     disabled={cookieSaving === domain.id}
-                    className="text-xs font-semibold px-3 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+                    className="text-xs font-mono font-semibold px-3 py-1.5 bg-signal text-surface hover:bg-signal-dark disabled:opacity-50 focus:ring-2 focus:ring-signal focus:outline-none"
                   >
                     Save
                   </button>
@@ -196,7 +197,7 @@ export default function Domains() {
                       setCookieEditing((prev) => ({ ...prev, [domain.id]: false }));
                       setCookieInputs((prev) => ({ ...prev, [domain.id]: "" }));
                     }}
-                    className="text-xs font-semibold px-3 py-1.5 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    className="text-xs font-mono font-semibold px-3 py-1.5 border border-hairline text-ink hover:bg-paper focus:ring-2 focus:ring-signal focus:outline-none"
                   >
                     Cancel
                   </button>
@@ -206,19 +207,19 @@ export default function Domains() {
                 <button
                   onClick={() => handleClearCookie(domain)}
                   disabled={cookieSaving === domain.id}
-                  className="mt-2 text-xs text-red-600 hover:underline disabled:opacity-50"
+                  className="mt-2 text-xs text-critical hover:underline disabled:opacity-50 focus:ring-2 focus:ring-signal focus:outline-none"
                 >
                   Clear cookie
                 </button>
               )}
               {cookieError[domain.id] && (
-                <p className="text-red-600 text-xs mt-2">{cookieError[domain.id]}</p>
+                <p className="text-critical text-xs mt-2">{cookieError[domain.id]}</p>
               )}
             </div>
           </div>
         ))}
-        {domains.length === 0 && (
-          <p className="text-gray-500 text-sm">No domains yet — add one above to get started.</p>
+        {!loading && domains.length === 0 && (
+          <p className="text-muted text-sm">No domains yet — add one above to start scanning.</p>
         )}
       </div>
     </div>

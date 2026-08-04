@@ -45,7 +45,7 @@ describe("History", () => {
 
     expect(await screen.findByText("https://x.com")).toBeInTheDocument();
     expect(screen.getByText(/baseline/)).toBeInTheDocument();
-    expect(screen.getByText("completed")).toBeInTheDocument();
+    expect(screen.getByText("[completed]")).toBeInTheDocument();
     expect(screen.getByRole("link")).toHaveAttribute("href", "/scan/s1");
   });
 
@@ -59,16 +59,16 @@ describe("History", () => {
   });
 
   it.each<[ScanStatus, string]>([
-    ["pending", "bg-gray-100"],
-    ["running", "bg-blue-100"],
-    ["completed", "bg-green-100"],
-    ["failed", "bg-red-100"],
-  ])("gives %s scans the expected status badge color", async (status, expectedClass) => {
+    ["pending", "text-muted"],
+    ["running", "text-medium"],
+    ["completed", "text-low"],
+    ["failed", "text-critical"],
+  ])("gives %s scans the expected status tag color", async (status, expectedClass) => {
     mockedGet.mockResolvedValue({ data: [makeScan({ status })] });
 
     renderHistory();
 
-    const badge = await screen.findByText(status);
+    const badge = await screen.findByText(`[${status}]`);
     expect(badge.className).toContain(expectedClass);
   });
 });

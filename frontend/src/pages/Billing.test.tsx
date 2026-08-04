@@ -99,8 +99,7 @@ describe("Billing", () => {
     render(<Billing />);
 
     await screen.findByText(/0 \/ 3 scans used this month/);
-    const switchButtons = await screen.findAllByRole("button", { name: "Switch" });
-    await user.click(switchButtons[0]); // Pro is the first non-free plan card
+    await user.click(await screen.findByRole("button", { name: "Upgrade to Pro" }));
 
     await waitFor(() =>
       expect(mockedPost).toHaveBeenCalledWith("/api/billing/checkout/order", { plan: "pro" })
@@ -146,8 +145,7 @@ describe("Billing", () => {
     render(<Billing />);
 
     await screen.findByText(/0 \/ 3 scans used this month/);
-    const switchButtons = await screen.findAllByRole("button", { name: "Switch" });
-    await user.click(switchButtons[0]);
+    await user.click(await screen.findByRole("button", { name: "Upgrade to Pro" }));
 
     expect(await screen.findByText("checkout unavailable")).toBeInTheDocument();
     expect(RazorpayCtor).not.toHaveBeenCalled();
@@ -187,8 +185,7 @@ describe("Billing", () => {
     render(<Billing />);
 
     await screen.findByText(/5 scans this month \(unlimited\)/);
-    const switchButtons = await screen.findAllByRole("button", { name: "Switch" });
-    await user.click(switchButtons[0]); // Free is the first plan card
+    await user.click(await screen.findByRole("button", { name: "Downgrade to Free" }));
 
     expect(await screen.findByText(/drop to 3 scans\/month/)).toBeInTheDocument();
     expect(mockedPost).not.toHaveBeenCalled();
@@ -214,8 +211,7 @@ describe("Billing", () => {
     const user = userEvent.setup();
     render(<Billing />);
 
-    const switchButtons = await screen.findAllByRole("button", { name: "Switch" });
-    await user.click(switchButtons[0]); // Free is the first plan card
+    await user.click(await screen.findByRole("button", { name: "Downgrade to Free" }));
     await user.click(await screen.findByRole("button", { name: "Confirm downgrade" }));
 
     await waitFor(() => expect(mockedPost).toHaveBeenCalledWith("/api/billing/upgrade", { plan: "free" }));

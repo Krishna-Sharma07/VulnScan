@@ -43,7 +43,7 @@ describe("Domains", () => {
     render(<Domains />);
 
     expect(await screen.findByText("verified.com")).toBeInTheDocument();
-    expect(screen.getByText("Verified")).toBeInTheDocument();
+    expect(screen.getByText("[Verified]")).toBeInTheDocument();
     // "pending.com" legitimately appears twice: the domain row itself, and
     // again inside its "add this DNS TXT record" instructions.
     expect(screen.getAllByText("pending.com")).toHaveLength(2);
@@ -112,7 +112,7 @@ describe("Domains", () => {
 
     await user.click(await screen.findByRole("button", { name: "Check verification" }));
 
-    expect(await screen.findByText("Verified")).toBeInTheDocument();
+    expect(await screen.findByText("[Verified]")).toBeInTheDocument();
   });
 
   it("shows an error under the domain when verification fails", async () => {

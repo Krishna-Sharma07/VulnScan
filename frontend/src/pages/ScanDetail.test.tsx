@@ -105,7 +105,7 @@ describe("ScanDetail", () => {
 
     renderScanDetail();
 
-    expect(await screen.findByText("Scan failed. Try starting a new one.")).toBeInTheDocument();
+    expect(await screen.findByText("Scan failed. Start a new one to try again.")).toBeInTheDocument();
   });
 
   it("polls every 3s while pending/running and stops once the scan completes", async () => {

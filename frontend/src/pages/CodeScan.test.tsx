@@ -101,7 +101,7 @@ describe("CodeScan", () => {
     renderCodeScan();
 
     expect(await screen.findByText("myproject.zip")).toBeInTheDocument();
-    expect(screen.getByText("completed")).toBeInTheDocument();
+    expect(screen.getByText("[completed]")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /myproject.zip/ })).toHaveAttribute(
       "href",
       "/code-scan/cs1"

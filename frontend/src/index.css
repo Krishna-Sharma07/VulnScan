@@ -1,5 +1,31 @@
 @import "tailwindcss";
 
+/* "Signal Console" design tokens - grounded in the product itself (scan
+   output: severities, hostnames, timestamps, status) rather than a generic
+   SaaS palette. Named as custom Tailwind v4 theme colors (CSS-first config,
+   no tailwind.config.js in this project) so they become real utilities:
+   bg-paper, text-ink, border-hairline, text-critical, etc. Overriding the
+   built-in --font-sans/--font-mono keys means the existing font-sans/
+   font-mono utility classes pick up these faces everywhere automatically. */
+@theme {
+  --color-paper: #f1f3f1;
+  --color-surface: #ffffff;
+  --color-ink: #10201b;
+  --color-muted: #5b6b63;
+  --color-hairline: #dce3de;
+  --color-signal: #d6491f;
+  --color-signal-dark: #b23a15;
+
+  --color-critical: #d6491f;
+  --color-high: #c77324;
+  --color-medium: #9c7c12;
+  --color-low: #2b6e7a;
+  --color-info: #5b6b63;
+
+  --font-sans: "Inter", system-ui, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
+}
+
 /* This app only has a light theme so far - color-scheme: light stops the
    browser from applying its dark-mode default text color (near-white,
    meant for dark backgrounds) to elements with no explicit Tailwind color
@@ -10,6 +36,26 @@
 
 body {
   margin: 0;
-  font-family: system-ui, "Segoe UI", Roboto, sans-serif;
-  color: #111827;
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  background-color: var(--color-paper);
+}
+
+/* The landing hero's signature moment: a blinking terminal-cursor block
+   after the last word of the headline. CSS-only, one occurrence on the
+   whole site - see frontend-design skill's "spend your boldness in one
+   place" principle. */
+@keyframes cursor-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.cursor-blink {
+  animation: cursor-blink 1s step-start infinite;
 }

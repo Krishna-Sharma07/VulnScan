@@ -107,7 +107,7 @@ describe("CodeScanDetail", () => {
 
     renderCodeScanDetail();
 
-    expect(await screen.findByText("Scan failed. Try uploading again.")).toBeInTheDocument();
+    expect(await screen.findByText("Scan failed. Upload again to try once more.")).toBeInTheDocument();
   });
 
   it("polls every 3s while pending/running and stops once the scan completes", async () => {

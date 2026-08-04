@@ -1,7 +1,8 @@
 import { Navigate, Route, Routes } from "react-router-dom";
-import { AuthProvider } from "./context/AuthContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
+import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Domains from "./pages/Domains";
@@ -12,16 +13,24 @@ import Billing from "./pages/Billing";
 import CodeScan from "./pages/CodeScan";
 import CodeScanDetail from "./pages/CodeScanDetail";
 
+// Logged-out visitors see the marketing landing page at "/"; logged-in
+// users are sent straight to their domains instead of seeing it again.
+function RootRoute() {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="p-8 text-center text-gray-500">Loading...</div>;
+  return user ? <Navigate to="/domains" replace /> : <Landing />;
+}
+
 export default function App() {
   return (
     <AuthProvider>
       <Routes>
         <Route element={<Layout />}>
+          <Route path="/" element={<RootRoute />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
 
           <Route element={<ProtectedRoute />}>
-            <Route path="/" element={<Navigate to="/domains" replace />} />
             <Route path="/domains" element={<Domains />} />
             <Route path="/scan/new" element={<NewScan />} />
             <Route path="/scan/:id" element={<ScanDetail />} />

@@ -1,15 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../api/client";
+import Tag, { statusTone } from "../components/Tag";
 import type { CodeScanReport, Severity } from "../types";
-
-const severityColor: Record<Severity, string> = {
-  critical: "bg-red-600 text-white",
-  high: "bg-red-100 text-red-700",
-  medium: "bg-amber-100 text-amber-700",
-  low: "bg-blue-100 text-blue-700",
-  info: "bg-gray-100 text-gray-600",
-};
 
 const severityOrder: Severity[] = ["critical", "high", "medium", "low", "info"];
 
@@ -58,7 +51,7 @@ export default function CodeScanDetail() {
     }
   }
 
-  if (!report) return <p className="text-gray-500">Loading...</p>;
+  if (!report) return <p className="text-muted font-mono">Loading...</p>;
 
   const findingsBySeverity = severityOrder
     .map((sev) => ({ sev, findings: report.findings.filter((f) => f.severity === sev) }))
@@ -66,18 +59,20 @@ export default function CodeScanDetail() {
 
   return (
     <div>
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-2xl font-semibold">{report.filename}</h1>
-          <p className="text-sm text-gray-500">
-            code scan · status: <span className="font-medium">{report.status}</span>
+          <h1 className="font-mono text-2xl font-semibold text-ink break-all">
+            {report.filename}
+          </h1>
+          <p className="text-sm text-muted mt-1">
+            code scan · <Tag tone={statusTone[report.status]}>{report.status}</Tag>
           </p>
         </div>
         {report.status === "completed" && (
           <button
             onClick={downloadPdf}
             disabled={downloading}
-            className="bg-indigo-600 text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+            className="shrink-0 bg-signal text-surface px-4 py-2 text-sm font-mono font-medium hover:bg-signal-dark disabled:opacity-50 focus:ring-2 focus:ring-signal focus:outline-none"
           >
             {downloading ? "Preparing..." : "Download PDF"}
           </button>
@@ -85,37 +80,33 @@ export default function CodeScanDetail() {
       </div>
 
       {(report.status === "pending" || report.status === "running") && (
-        <p className="text-gray-600">Scan is {report.status}... this page updates automatically.</p>
+        <p className="text-muted">Scan is {report.status} — this page updates automatically.</p>
       )}
 
       {report.status === "failed" && (
-        <p className="text-red-600">Scan failed. Try uploading again.</p>
+        <p className="text-critical">Scan failed. Upload again to try once more.</p>
       )}
 
       {report.status === "completed" && (
         <div className="space-y-6">
-          <p className="text-sm text-gray-600">{report.findings.length} findings</p>
+          <p className="text-sm text-muted font-mono">{report.findings.length} findings</p>
           {findingsBySeverity.map(({ sev, findings }) => (
             <div key={sev}>
-              <h2 className="text-lg font-semibold mb-2 capitalize">{sev}</h2>
+              <h2 className="font-mono text-lg font-semibold text-ink mb-2 capitalize">{sev}</h2>
               <div className="space-y-2">
                 {findings.map((finding) => (
-                  <div key={finding.id} className="bg-white border border-gray-200 rounded-lg p-4">
+                  <div key={finding.id} className="bg-surface border border-hairline p-4">
                     <div className="flex items-start justify-between gap-4">
-                      <p className="font-medium">{finding.title}</p>
-                      <span
-                        className={`text-xs font-semibold px-2 py-1 rounded-full shrink-0 ${severityColor[finding.severity]}`}
-                      >
-                        {finding.severity}
-                      </span>
+                      <p className="font-medium text-ink">{finding.title}</p>
+                      <Tag tone={finding.severity}>{finding.severity}</Tag>
                     </div>
-                    <p className="text-xs text-gray-400 mt-1 uppercase">{finding.source}</p>
-                    <p className="text-sm text-gray-600 mt-1">{finding.description}</p>
-                    <p className="text-xs text-gray-400 mt-2 break-all">
+                    <p className="text-xs text-muted font-mono mt-1 uppercase">{finding.source}</p>
+                    <p className="text-sm text-muted mt-1">{finding.description}</p>
+                    <p className="text-xs text-muted font-mono mt-2 break-all">
                       {finding.affected_file}
                       {finding.line_number != null ? `:${finding.line_number}` : ""}
                     </p>
-                    <p className="text-sm text-gray-700 mt-2">
+                    <p className="text-sm text-ink mt-2">
                       <span className="font-medium">Remediation: </span>
                       {finding.remediation}
                     </p>
@@ -125,7 +116,7 @@ export default function CodeScanDetail() {
             </div>
           ))}
           {report.findings.length === 0 && (
-            <p className="text-gray-500">No findings — clean scan.</p>
+            <p className="text-muted">No findings — clean scan.</p>
           )}
         </div>
       )}

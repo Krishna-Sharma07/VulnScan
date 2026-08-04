@@ -29,6 +29,15 @@ const PLANS: {
   },
 ];
 
+// Only Free/Pro ever reach the plain-button branch below (Enterprise has its
+// own mailto branch) - a specific label per plan beats one generic "Switch"
+// for every non-current plan.
+const actionLabel: Record<PlanTier, string> = {
+  free: "Downgrade to Free",
+  pro: "Upgrade to Pro",
+  enterprise: "Switch",
+};
+
 export default function Billing() {
   const { user, refreshUser } = useAuth();
   const [usage, setUsage] = useState<BillingUsage | null>(null);
@@ -123,22 +132,25 @@ export default function Billing() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold mb-2">Billing</h1>
-      <p className="text-gray-600 mb-6">
+      <h1 className="font-mono text-2xl font-semibold text-ink mb-2">Billing</h1>
+      <p className="text-muted mb-6">
         Upgrades to Pro are processed through Razorpay Checkout. Downgrading to Free applies
         immediately with no charge.
       </p>
 
       {usage && (
-        <div className="bg-white border border-gray-200 rounded-md px-4 py-3 mb-6 text-sm">
-          <span className="font-medium capitalize">{usage.plan}</span> plan &middot;{" "}
-          {usage.monthly_scan_limit === null
-            ? `${usage.scans_used_this_month} scans this month (unlimited)`
-            : `${usage.scans_used_this_month} / ${usage.monthly_scan_limit} scans used this month`}
+        <div className="bg-surface border border-hairline px-4 py-3 mb-6 text-sm font-mono">
+          <span className="font-medium capitalize text-ink">{usage.plan}</span>{" "}
+          <span className="text-muted">
+            plan &middot;{" "}
+            {usage.monthly_scan_limit === null
+              ? `${usage.scans_used_this_month} scans this month (unlimited)`
+              : `${usage.scans_used_this_month} / ${usage.monthly_scan_limit} scans used this month`}
+          </span>
         </div>
       )}
 
-      {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
+      {error && <p className="text-sm text-critical mb-4">{error}</p>}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {PLANS.map((plan) => {
@@ -146,20 +158,20 @@ export default function Billing() {
           return (
             <div
               key={plan.id}
-              className={`rounded-lg border p-5 flex flex-col ${
-                isCurrent ? "border-indigo-600 ring-1 ring-indigo-600" : "border-gray-200"
+              className={`border p-5 flex flex-col ${
+                isCurrent ? "border-2 border-signal" : "border-hairline"
               }`}
             >
-              <h2 className="text-lg font-semibold">{plan.name}</h2>
-              <p className="text-2xl font-bold mt-1 mb-4">{plan.price}</p>
-              <ul className="text-sm text-gray-600 space-y-1 mb-6 flex-1">
+              <h2 className="font-mono text-lg font-semibold text-ink">{plan.name}</h2>
+              <p className="font-mono text-2xl font-bold text-ink mt-1 mb-4">{plan.price}</p>
+              <ul className="text-sm text-muted space-y-1 mb-6 flex-1">
                 {plan.features.map((f) => (
                   <li key={f}>&bull; {f}</li>
                 ))}
               </ul>
               {confirmingPlan === plan.id ? (
                 <div>
-                  <p className="text-xs text-red-600 mb-2">
+                  <p className="text-xs text-critical mb-2">
                     You'll drop to 3 scans/month and lose aggressive (sqlmap) scanning
                     immediately. Continue?
                   </p>
@@ -167,14 +179,14 @@ export default function Billing() {
                     <button
                       disabled={changingTo !== null}
                       onClick={() => switchToFree()}
-                      className="flex-1 rounded-md py-2 font-medium bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                      className="flex-1 py-2 font-mono font-medium border-2 border-critical text-critical hover:bg-critical hover:text-surface disabled:opacity-50 focus:ring-2 focus:ring-critical focus:outline-none"
                     >
                       {changingTo === plan.id ? "Switching..." : "Confirm downgrade"}
                     </button>
                     <button
                       disabled={changingTo !== null}
                       onClick={() => setConfirmingPlan(null)}
-                      className="flex-1 rounded-md py-2 font-medium border border-gray-300 hover:bg-gray-50 disabled:opacity-50"
+                      className="flex-1 py-2 font-mono font-medium border border-hairline text-ink hover:bg-paper disabled:opacity-50 focus:ring-2 focus:ring-signal focus:outline-none"
                     >
                       Cancel
                     </button>
@@ -186,7 +198,7 @@ export default function Billing() {
                 // this stays a manual/sales process instead of a fake price.
                 <a
                   href="mailto:sales@vulnscanpro.example.com?subject=Enterprise%20plan"
-                  className="w-full text-center rounded-md py-2 font-medium border border-indigo-600 text-indigo-600 hover:bg-indigo-50"
+                  className="w-full text-center py-2 font-mono font-medium border border-signal text-signal hover:bg-paper focus:ring-2 focus:ring-signal focus:outline-none"
                 >
                   Contact us
                 </a>
@@ -194,9 +206,13 @@ export default function Billing() {
                 <button
                   disabled={isCurrent || changingTo !== null}
                   onClick={() => selectPlan(plan.id)}
-                  className="w-full rounded-md py-2 font-medium bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+                  className="w-full py-2 font-mono font-medium bg-signal text-surface hover:bg-signal-dark disabled:opacity-50 focus:ring-2 focus:ring-signal focus:outline-none"
                 >
-                  {isCurrent ? "Current plan" : changingTo === plan.id ? "Switching..." : "Switch"}
+                  {isCurrent
+                    ? "Current plan"
+                    : changingTo === plan.id
+                      ? "Switching..."
+                      : actionLabel[plan.id]}
                 </button>
               )}
             </div>
